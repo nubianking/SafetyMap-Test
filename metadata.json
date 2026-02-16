@@ -1,0 +1,9 @@
+{
+  "name": "Safety Map Africa - Grid Node v2.5",
+  "description": "High-fidelity decentralized situational awareness network. Monetize route safety via Vertex AI verified sentry nodes.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
