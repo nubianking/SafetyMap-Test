@@ -44,6 +44,12 @@ export interface AudioEvent {
   timestampOffset: number;
 }
 
+export interface Anomaly {
+  type: string;
+  description: string;
+  confidence: number;
+}
+
 export interface LiveAlert {
   id: string;
   label: string;
@@ -58,6 +64,17 @@ export interface LiveAlert {
   verificationScore: VerificationScore;
   audioEvents: AudioEvent[];
   detectedObjects: string[];
+  anomalies?: Anomaly[];
+  temporalTrend?: 'STABILIZING' | 'ESCALATING' | 'FLUCTUATING' | 'STATIC';
+  predictiveRisk?: {
+    probability: number;
+    timeframe: string;
+    projectedOutcome: string;
+  };
+  riskVectors?: {
+    type: string;
+    magnitude: number;
+  }[];
   boundingBoxes: number[][];
   timeRange?: string; 
   emergencyResponse?: string;
@@ -80,4 +97,5 @@ export interface IncidentReport {
   verificationScore?: VerificationScore;
   forensics?: ForensicMetadata;
   emergencyLevel?: string;
+  intelligenceSummary?: string;
 }

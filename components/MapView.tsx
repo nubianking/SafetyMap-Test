@@ -8,12 +8,31 @@ interface MapViewProps {
   liveAlerts?: LiveAlert[];
 }
 
+interface Driver {
+  id: string;
+  name: string;
+  location: { lat: number; lng: number };
+  destination: { lat: number; lng: number };
+  eta: number;
+  status: string;
+}
+
+const INITIAL_DRIVERS: Driver[] = [
+  { id: 'NODE-A1', name: 'Alpha Unit', location: { lat: 6.5244, lng: 3.3792 }, destination: { lat: 6.5400, lng: 3.3900 }, eta: 12, status: 'MAPPING' },
+  { id: 'NODE-B2', name: 'Bravo Unit', location: { lat: 6.5100, lng: 3.3600 }, destination: { lat: 6.5300, lng: 3.3800 }, eta: 8, status: 'MAPPING' },
+  { id: 'NODE-C3', name: 'Charlie Unit', location: { lat: 6.5350, lng: 3.3700 }, destination: { lat: 6.5150, lng: 3.3650 }, eta: 15, status: 'MAPPING' },
+  { id: 'NODE-D4', name: 'Delta Unit', location: { lat: 6.5200, lng: 3.3850 }, destination: { lat: 6.5000, lng: 3.3500 }, eta: 22, status: 'MAPPING' },
+];
+
 const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [activeAlert, setActiveAlert] = useState<any>(null);
+  const [activeDriver, setActiveDriver] = useState<Driver | null>(null);
   const [gridLog, setGridLog] = useState<string[]>(['Grid Secure', 'Forensic Audit Armed', 'Landmark OCR Syncing...']);
   const [markers, setMarkers] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>(INITIAL_DRIVERS);
+  const driverMarkersRef = useRef<any[]>([]);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -30,6 +49,36 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
     return () => { if (mapRef.current) mapRef.current.remove(); };
   }, []);
 
+  // Driver movement simulation (updates every 15 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDrivers(prev => prev.map(driver => {
+        const latDiff = driver.destination.lat - driver.location.lat;
+        const lngDiff = driver.destination.lng - driver.location.lng;
+        
+        // If reached destination, pick a new one
+        if (Math.abs(latDiff) < 0.002 && Math.abs(lngDiff) < 0.002) {
+           return {
+             ...driver,
+             destination: { lat: 6.51 + Math.random() * 0.04, lng: 3.35 + Math.random() * 0.04 },
+             eta: Math.floor(Math.random() * 15) + 5
+           };
+        }
+
+        return {
+          ...driver,
+          location: {
+            lat: driver.location.lat + latDiff * 0.15,
+            lng: driver.location.lng + lngDiff * 0.15
+          },
+          eta: Math.max(1, Math.floor(driver.eta - 0.25))
+        };
+      }));
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Render Alert Markers
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -70,6 +119,7 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
       const marker = (window as any).L.marker([alert.location.lat, alert.location.lng], { icon }).addTo(mapRef.current);
       marker.on('click', () => {
         setActiveAlert(alert);
+        setActiveDriver(null);
         mapRef.current.setView([alert.location.lat, alert.location.lng], 16);
       });
       newMarkers.push(marker);
@@ -77,6 +127,45 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
 
     setMarkers(newMarkers);
   }, [liveAlerts]);
+
+  // Render Driver Markers
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    driverMarkersRef.current.forEach(m => mapRef.current.removeLayer(m));
+    const newMarkers: any[] = [];
+
+    drivers.forEach(driver => {
+      const icon = (window as any).L.divIcon({
+        className: 'driver-marker',
+        html: `
+          <div class="relative flex flex-col items-center justify-center group">
+            <div class="w-10 h-10 bg-green-500/20 rounded-full absolute animate-ping"></div>
+            <div class="w-8 h-8 bg-green-500 rounded-full border-2 border-white flex items-center justify-center shadow-[0_0_15px_rgba(34,197,94,0.8)] relative z-10">
+               <svg class="w-4 h-4 text-white transform rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+               </svg>
+            </div>
+            <div class="absolute top-10 bg-black/90 border border-white/10 px-3 py-1.5 rounded-lg text-[9px] font-black text-white whitespace-nowrap shadow-xl backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity z-20">
+              ETA: ${driver.eta} MIN
+            </div>
+          </div>
+        `,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+      });
+
+      const marker = (window as any).L.marker([driver.location.lat, driver.location.lng], { icon }).addTo(mapRef.current);
+      marker.on('click', () => {
+        setActiveDriver(driver);
+        setActiveAlert(null);
+        mapRef.current.setView([driver.location.lat, driver.location.lng], 15);
+      });
+      newMarkers.push(marker);
+    });
+
+    driverMarkersRef.current = newMarkers;
+  }, [drivers]);
 
   const ScoreBar = ({ label, score, color = 'bg-blue-500' }: { label: string, score: number, color?: string }) => (
     <div className="space-y-1.5">
@@ -104,7 +193,7 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
                   <span className="text-[11px] font-black text-white uppercase tracking-[0.5em]">Forensic Command Desk</span>
                </div>
                <div className="hidden lg:flex items-center gap-6 border-l border-white/10 pl-10">
-                  <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Active Nodes: <span className="text-white">1,402</span></div>
+                  <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Active Nodes: <span className="text-white">{1402 + drivers.length}</span></div>
                   <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Global Risk: <span className="text-orange-500">LOW</span></div>
                </div>
             </div>
@@ -203,6 +292,53 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
 
                 <button 
                   onClick={() => setActiveAlert(null)}
+                  className="w-full py-8 bg-zinc-900 hover:bg-white hover:text-black text-white rounded-[2rem] font-black text-[12px] tracking-[0.3em] uppercase transition-all shadow-2xl active:scale-95"
+                >
+                  Clear Command Interface
+                </button>
+             </div>
+           ) : activeDriver ? (
+             <div className="animate-in fade-in slide-in-from-right duration-700 space-y-12">
+                <div className="space-y-4">
+                   <div className="flex justify-between items-start">
+                      <span className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-green-600 text-white">
+                        ACTIVE MAPPER NODE
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-600">{activeDriver.id}</span>
+                   </div>
+                   <h4 className="text-5xl font-black italic uppercase tracking-tighter text-white leading-none">{activeDriver.name}</h4>
+                </div>
+
+                <div className="bg-zinc-900/40 border border-white/5 rounded-[3rem] p-10 space-y-8">
+                   <div className="flex items-center gap-3">
+                      <ICONS.Navigation className="w-5 h-5 text-green-500" />
+                      <span className="text-[11px] font-black text-green-500 uppercase tracking-widest">Live Routing Telemetry</span>
+                   </div>
+                   
+                   <div className="grid grid-cols-2 gap-8">
+                      <div className="space-y-2">
+                         <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Current Position</div>
+                         <div className="text-xs font-mono text-white">{activeDriver.location.lat.toFixed(4)}, {activeDriver.location.lng.toFixed(4)}</div>
+                      </div>
+                      <div className="space-y-2">
+                         <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Destination</div>
+                         <div className="text-xs font-mono text-white">{activeDriver.destination.lat.toFixed(4)}, {activeDriver.destination.lng.toFixed(4)}</div>
+                      </div>
+                   </div>
+
+                   <div className="pt-6 border-t border-white/5 flex justify-between items-center">
+                      <div className="space-y-1">
+                         <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Estimated Arrival</div>
+                         <div className="text-3xl font-black text-white italic tracking-tighter">{activeDriver.eta} <span className="text-sm text-zinc-500">MIN</span></div>
+                      </div>
+                      <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center border border-green-500/20">
+                         <ICONS.Activity className="w-6 h-6 text-green-500 animate-pulse" />
+                      </div>
+                   </div>
+                </div>
+
+                <button 
+                  onClick={() => setActiveDriver(null)}
                   className="w-full py-8 bg-zinc-900 hover:bg-white hover:text-black text-white rounded-[2rem] font-black text-[12px] tracking-[0.3em] uppercase transition-all shadow-2xl active:scale-95"
                 >
                   Clear Command Interface

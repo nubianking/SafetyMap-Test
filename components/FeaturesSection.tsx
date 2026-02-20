@@ -4,44 +4,37 @@ import { ICONS } from '../constants';
 
 const FeaturesSection: React.FC = () => {
   return (
-    <section id="how-it-works" className="py-24 px-6 md:px-12 bg-zinc-950 border-t border-white/5">
+    <section id="how-it-works" className="py-48 px-6 md:px-12 bg-black border-t border-white/5">
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row gap-16 items-start">
-          <div className="md:w-1/3 sticky top-32">
-            <h2 className="text-5xl font-black tracking-tighter mb-6 leading-none">HOW TO <br /> <span className="text-orange-500">MAP.</span></h2>
-            <p className="text-zinc-500 mb-8">Follow these steps to start your first session as a Safety Mapper.</p>
-            <div className="flex items-center gap-4 text-white">
-              <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800">
-                <ICONS.BookOpen className="w-6 h-6" />
-              </div>
-              <span className="text-sm font-bold uppercase tracking-widest">Download Mapper Guide</span>
-            </div>
+        <div className="grid lg:grid-cols-2 gap-32 items-start">
+          <div className="space-y-10 sticky top-48">
+            <h3 className="text-[11px] font-black text-[#ff5f00] tracking-[0.6em] uppercase">Onboarding</h3>
+            <h2 className="text-7xl md:text-8xl font-black tracking-tighter uppercase leading-[0.85] text-reveal">JOIN THE <br />GRID.</h2>
+            <p className="text-zinc-500 text-xl leading-relaxed font-medium max-w-md">Follow our high-fidelity deployment protocol to start your first session.</p>
           </div>
           
-          <div className="md:w-2/3 space-y-24">
+          <div className="space-y-32">
             {[
               { 
                 step: '01', 
-                title: 'Mount & Calibrate', 
-                desc: 'Secure your smartphone using a standard handlebar mount. Ensure the camera has a clear view of the road ahead. Our app will auto-calibrate the horizon for optimal mapping precision.' 
+                title: 'Deployment', 
+                desc: 'Mount your device with a stable chassis lock. Precision imaging requires an unobstructed field of vision of the urban corridor.' 
               },
               { 
                 step: '02', 
-                title: 'Activate Live Map', 
-                desc: 'Open the Safety Map app and tap "GO LIVE". Your phone becomes an active node, streaming low-latency video and telemetry to our central grid.' 
+                title: 'Activation', 
+                desc: 'Initialize your node with a single tap. Our system binds your device signature to the grid, establishing a secure telemetry uplink.' 
               },
               { 
                 step: '03', 
-                title: 'Map & Withdraw', 
-                desc: 'Tokens accumulate in real-time as you ride. Map "Blind Spots" for massive multipliers. Cash out anytime to your bank account.' 
+                title: 'Settlement', 
+                desc: 'Observe the accumulation of RGT yield in real-time. Verified anomalies and persistence streaks provide compounded multipliers.' 
               }
             ].map((item, i) => (
-              <div key={i} className="flex flex-col md:flex-row gap-12 group">
-                <div className="text-8xl font-black text-zinc-900 group-hover:text-orange-500/20 transition-colors leading-none italic select-none">{item.step}</div>
-                <div>
-                  <h3 className="text-3xl font-black text-white mb-4 tracking-tighter">{item.title}</h3>
-                  <p className="text-lg text-zinc-500 leading-relaxed max-w-lg">{item.desc}</p>
-                </div>
+              <div key={i} className="group space-y-8 pb-16 border-b border-white/5">
+                <div className="text-[12px] font-black text-[#ff5f00] tracking-[0.5em] uppercase">{item.step}</div>
+                <h3 className="text-5xl font-black text-white tracking-tighter uppercase italic">{item.title}</h3>
+                <p className="text-xl text-zinc-500 leading-relaxed font-medium max-w-xl">{item.desc}</p>
               </div>
             ))}
           </div>

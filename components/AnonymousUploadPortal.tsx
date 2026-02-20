@@ -57,12 +57,13 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
         contents: [{
           parts: [
             { inlineData: { mimeType: file.type, data: base64Data } },
-            { text: `Analyze this uploaded incident evidence and perform the following 5 tasks:
+            { text: `Analyze this uploaded incident evidence and perform the following 6 tasks:
               1. Detect visible threats (weapons, fire, violence, collisions).
               2. Check for deepfake or manipulation signs (pixel artifacts, synthetic morphing).
               3. Assess metadata consistency (weather/lighting consistency with visual landmarks).
               4. Classify severity (LOW, MEDIUM, HIGH, CRITICAL).
-              5. Recommend verification status (VERIFIED, NEEDS REVIEW, SUSPICIOUS).` 
+              5. Recommend verification status (VERIFIED, NEEDS REVIEW, SUSPICIOUS).
+              6. Intelligence Summary: Provide a high-level tactical summary of the event, its potential impact on the local grid, and any identified behavioral patterns.` 
             }
           ]
         }],
@@ -75,6 +76,7 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
           - Task 3: Metadata/Context Consistency.
           - Task 4: Severity Classification.
           - Task 5: Verification Recommendation.
+          - Task 6: Intelligence Summary.
 
           Return ONLY valid JSON. Be clinically objective.`,
           responseMimeType: "application/json",
@@ -124,9 +126,10 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
                   summary: { type: Type.STRING }
                 },
                 required: ["status", "trust_score", "summary"]
-              }
+              },
+              intelligence_summary: { type: Type.STRING }
             },
-            required: ["threat_detection", "manipulation_audit", "metadata_consistency", "severity", "verification_recommendation"]
+            required: ["threat_detection", "manipulation_audit", "metadata_consistency", "severity", "verification_recommendation", "intelligence_summary"]
           }
         }
       });
@@ -154,6 +157,7 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
              audioCorrelation: 70
           },
           audioEvents: [],
+          intelligenceSummary: result.intelligence_summary,
           forensics: {
             integrityScore: (1 - result.manipulation_audit.deepfake_probability) * 100,
             isSynthetic: result.manipulation_audit.manipulation_detected,
@@ -193,13 +197,13 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(234,88,12,1)]"></div>
-              <span className="text-[10px] font-black text-zinc-500 tracking-[0.5em] uppercase">Evidence Submission Node</span>
+              <span className="text-[10px] font-black text-zinc-500 tracking-[0.5em] uppercase">Intelligence Audit Node</span>
             </div>
             <h2 className="text-5xl font-black tracking-tighter italic uppercase leading-none">
-              INCIDENT <span className="text-orange-600">AUDIT</span>
+              GRID <span className="text-orange-600">INTELLIGENCE</span>
             </h2>
             <p className="text-zinc-500 max-w-lg leading-relaxed font-medium">
-              Securely upload video evidence for forensic auditing. Our AI agent performs a 5-step task-based verification of pixel, metadata, and context integrity.
+              Securely upload video evidence for deep forensic auditing. Our AI agent performs a 6-step task-based verification of pixel, metadata, and contextual intelligence.
             </p>
           </div>
 
@@ -227,7 +231,7 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
                 <label className="cursor-pointer text-center group">
                   <input type="file" className="hidden" accept="video/*" onChange={handleFileChange} />
                   <span className="block text-2xl font-black text-white uppercase italic tracking-tighter mb-3 group-hover:text-orange-500 transition-colors">Attach Evidence Payload</span>
-                  <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em]">MP4 / MOV — 5-POINT AUDIT ENABLED</span>
+                  <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em]">MP4 / MOV — 6-POINT AUDIT ENABLED</span>
                 </label>
               </>
             )}
@@ -239,9 +243,9 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
                  </div>
                  <div className="space-y-4">
                     <h4 className="text-3xl font-black italic uppercase tracking-tighter text-white animate-pulse">
-                      {isAnonymizing ? 'Anonymizing Metadata...' : 'Forensic Task Audit...'}
+                      {isAnonymizing ? 'Anonymizing Metadata...' : 'Executing Intelligence Audit...'}
                     </h4>
-                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.4em]">PIXEL | METADATA | SEVERITY | VERIFICATION</p>
+                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.4em]">PIXEL | METADATA | SEVERITY | CONTEXT | INTEL</p>
                  </div>
               </div>
             )}
@@ -253,7 +257,7 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
                onClick={analyzeVideo}
                className={`flex-1 py-7 rounded-[2rem] font-black text-[12px] tracking-[0.3em] uppercase transition-all shadow-2xl ${!file || isProcessing ? 'bg-zinc-900 text-zinc-700 cursor-not-allowed border border-white/5' : 'bg-orange-600 text-white border border-orange-400/20 hover:scale-[1.02] active:scale-95'}`}
              >
-               {isProcessing ? 'Executing 5-Task Audit...' : 'Start Forensic Verification'}
+               {isProcessing ? 'Executing 6-Task Audit...' : 'Start Intelligence Verification'}
              </button>
              <button onClick={onBack} className="px-12 py-7 bg-zinc-900 text-zinc-500 font-black text-[11px] tracking-widest uppercase rounded-[2rem] border border-white/5 hover:text-white transition-all">Cancel</button>
           </div>
@@ -263,8 +267,8 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
            <div className={`h-full min-h-[550px] bg-[#0c0c0c] border border-white/5 rounded-[4rem] p-12 flex flex-col transition-all duration-1000 ${results ? 'opacity-100 translate-y-0' : 'opacity-20 translate-y-4'}`}>
               <div className="flex items-center justify-between mb-12">
                  <div className="space-y-1">
-                    <h3 className="text-2xl font-black uppercase italic tracking-tighter text-white">Forensic Report</h3>
-                    <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.4em]">Audit Task Log v5.0</p>
+                    <h3 className="text-2xl font-black uppercase italic tracking-tighter text-white">Intelligence Report</h3>
+                    <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.4em]">Audit Task Log v6.0</p>
                  </div>
                  <div className="w-12 h-12 bg-blue-600/10 rounded-2xl flex items-center justify-center border border-blue-500/20">
                     <ICONS.Fingerprint className="w-6 h-6 text-blue-500" />
@@ -274,8 +278,16 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
               {results ? (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom duration-1000 overflow-y-auto pr-2 custom-scrollbar">
                    
-                   {/* Recommendation Task */}
+                   {/* Intelligence Summary Task */}
                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black text-purple-500 uppercase tracking-[0.4em]">Task 6: Intelligence Summary</h4>
+                      <div className="bg-purple-600/10 border border-purple-500/30 p-8 rounded-[2.5rem] italic text-[11px] text-zinc-300 leading-relaxed font-medium">
+                         "{results.intelligence_summary}"
+                      </div>
+                   </div>
+
+                   {/* Recommendation Task */}
+                   <div className="space-y-4 pt-4 border-t border-white/5">
                       <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em]">Task 5: Verification Recommendation</h4>
                       <div className={`p-8 rounded-[2.5rem] border ${results.verification_recommendation.status === 'VERIFIED' ? 'bg-green-600/10 border-green-500/30' : results.verification_recommendation.status === 'SUSPICIOUS' ? 'bg-red-600/10 border-red-500/30' : 'bg-orange-600/10 border-orange-500/30'} flex flex-col items-center text-center gap-4`}>
                          <div className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.5em]">Trust Status</div>
@@ -345,7 +357,7 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                            {results.metadata_consistency.landmark_verification.map((l: string, i: number) => (
-                              <span key={i} className="bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20 text-[8px] font-black text-green-500 uppercase">{l}</span>
+                               <span key={i} className="bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20 text-[8px] font-black text-green-500 uppercase">{l}</span>
                            ))}
                         </div>
                       </div>
@@ -359,7 +371,7 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
                    </div>
                    <div className="text-center">
                       <h4 className="text-sm font-black text-zinc-700 uppercase tracking-[0.4em]">Awaiting Uplink</h4>
-                      <p className="text-[10px] text-zinc-800 font-bold uppercase mt-3 text-center">Ready for 5-Point Forensic Audit</p>
+                      <p className="text-[10px] text-zinc-800 font-bold uppercase mt-3 text-center">Ready for 6-Point Intelligence Audit</p>
                    </div>
                 </div>
               )}
