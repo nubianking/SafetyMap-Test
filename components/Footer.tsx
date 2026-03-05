@@ -2,7 +2,13 @@
 import React from 'react';
 import { ICONS } from '../constants';
 
-const Footer: React.FC = () => {
+interface FooterProps {
+  onWhitepaper?: () => void;
+  onPrivacy?: () => void;
+  onLegal?: () => void;
+}
+
+const Footer: React.FC<FooterProps> = ({ onWhitepaper, onPrivacy, onLegal }) => {
   return (
     <footer className="bg-black border-t border-white/5 pt-48 pb-24 px-6 md:px-12 overflow-hidden">
       <div className="max-w-7xl mx-auto flex flex-col items-center">
@@ -26,16 +32,15 @@ const Footer: React.FC = () => {
             <ul className="space-y-6 text-[12px] font-black text-white uppercase tracking-widest">
               <li><a href="#" className="hover:text-[#ff5f00] transition-colors">Nodes</a></li>
               <li><a href="#" className="hover:text-[#ff5f00] transition-colors">Grids</a></li>
-              <li><a href="#" className="hover:text-[#ff5f00] transition-colors">Yields</a></li>
             </ul>
           </div>
 
           <div className="space-y-10">
             <h4 className="text-[11px] font-black text-zinc-600 tracking-[0.5em] uppercase">Platform</h4>
             <ul className="space-y-6 text-[12px] font-black text-white uppercase tracking-widest">
-              <li><a href="#" className="hover:text-[#ff5f00] transition-colors">Whitepaper</a></li>
-              <li><a href="#" className="hover:text-[#ff5f00] transition-colors">Privacy</a></li>
-              <li><a href="#" className="hover:text-[#ff5f00] transition-colors">Legal</a></li>
+              <li><button onClick={onWhitepaper} className="hover:text-[#ff5f00] transition-colors">Whitepaper</button></li>
+              <li><button onClick={onPrivacy} className="hover:text-[#ff5f00] transition-colors">Privacy</button></li>
+              <li><button onClick={onLegal} className="hover:text-[#ff5f00] transition-colors">Legal</button></li>
             </ul>
           </div>
         </div>

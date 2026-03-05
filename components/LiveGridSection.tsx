@@ -12,6 +12,13 @@ const LiveGridSection: React.FC<LiveGridSectionProps> = ({ onExpand, onUpload })
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
+    
+    // Ensure Leaflet is available
+    if (!(window as any).L) {
+      console.warn('Leaflet not loaded yet');
+      return;
+    }
+
     const map = (window as any).L.map(mapContainerRef.current, {
       center: [6.467, 3.585], 
       zoom: 14,
@@ -20,13 +27,13 @@ const LiveGridSection: React.FC<LiveGridSectionProps> = ({ onExpand, onUpload })
       scrollWheelZoom: false,
     });
 
-    (window as any).L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+    const tileLayer = (window as any).L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
     const routePoints = [
       [6.465, 3.580], [6.468, 3.585], [6.472, 3.588], [6.475, 3.592], [6.478, 3.600]
     ];
     
-    (window as any).L.polyline(routePoints, {
+    const polyline = (window as any).L.polyline(routePoints, {
       color: '#ff5f00',
       weight: 4,
       opacity: 0.6,
@@ -65,11 +72,13 @@ const LiveGridSection: React.FC<LiveGridSectionProps> = ({ onExpand, onUpload })
       iconAnchor: [15, 15]
     });
 
-    (window as any).L.marker([6.468, 3.585], { icon: createDataIcon('+15.4 RGT') }).addTo(map);
-    (window as any).L.marker([6.465, 3.580], { icon: createDriverIcon() }).addTo(map);
-    (window as any).L.marker([6.475, 3.592], { icon: createDriverIcon() }).addTo(map);
+    const m1 = (window as any).L.marker([6.468, 3.585], { icon: createDataIcon('+15.4 RGT') }).addTo(map);
+    const m2 = (window as any).L.marker([6.465, 3.580], { icon: createDriverIcon() }).addTo(map);
+    const m3 = (window as any).L.marker([6.475, 3.592], { icon: createDriverIcon() }).addTo(map);
 
-    return () => map.remove();
+    return () => {
+      map.remove();
+    };
   }, []);
 
   return (
@@ -78,7 +87,7 @@ const LiveGridSection: React.FC<LiveGridSectionProps> = ({ onExpand, onUpload })
         <div className="grid lg:grid-cols-2 gap-24 items-center">
           <div className="order-2 lg:order-1 relative">
             <div className="relative rounded-[3rem] overflow-hidden border border-white/10 shadow-2xl bg-black group/map h-[600px]">
-              <div ref={mapContainerRef} className="w-full h-full grayscale-[0.8] contrast-[1.2]" />
+              <div ref={mapContainerRef} className="w-full h-full grayscale-[0.8] contrast-[1.2] transition-transform duration-700 ease-in-out group-hover/map:scale-105" />
               
               <button 
                 onClick={onExpand}

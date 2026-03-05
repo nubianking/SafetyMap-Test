@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
 import FeaturesSection from './components/FeaturesSection';
@@ -10,16 +10,62 @@ import MapView from './components/MapView';
 import DriverPortal from './components/DriverPortal';
 import OnboardingPortal from './components/OnboardingPortal';
 import AnonymousUploadPortal from './components/AnonymousUploadPortal';
+import MapperProfile, { UserProfileData } from './components/profile/MapperProfile';
+import MapperLogin from './components/auth/MapperLogin';
+import OperationsPortal from './components/OperationsPortal';
+import Whitepaper from './components/Whitepaper';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import LegalNotice from './components/LegalNotice';
 import { LiveAlert } from './types';
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'HOME' | 'MAP' | 'DRIVER' | 'ONBOARDING' | 'UPLOAD'>('HOME');
+  const [view, setView] = useState<'HOME' | 'MAP' | 'DRIVER' | 'ONBOARDING' | 'UPLOAD' | 'PROFILE' | 'LOGIN' | 'OPERATIONS' | 'WHITEPAPER' | 'PRIVACY' | 'LEGAL'>('HOME');
   const [liveAlerts, setLiveAlerts] = useState<LiveAlert[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserProfileData | null>(null);
 
-  const handleNewAlert = (alert: LiveAlert) => {
-    setLiveAlerts(prev => [alert, ...prev].slice(0, 10)); // Keep last 10
+  useEffect(() => {
+    // Fetch initial alerts from the backend
+    const fetchAlerts = async () => {
+      try {
+        const response = await fetch('/api/alerts');
+        if (response.ok) {
+          const data = await response.json();
+          setLiveAlerts(data.slice(0, 10)); // Keep last 10 for UI
+        }
+      } catch (error) {
+        console.error('Failed to fetch alerts:', error);
+      }
+    };
+    fetchAlerts();
+  }, []);
+
+  const handleNewAlert = async (alert: LiveAlert) => {
+    // Optimistically update UI
+    setLiveAlerts(prev => [alert, ...prev].slice(0, 10)); 
+    
     if (alert.label.toLowerCase().includes('weapon')) {
       console.log("CRITICAL WEAPON ALERT DETECTED");
+    }
+
+    // Post to backend
+    try {
+      await fetch('/api/alerts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(alert),
+      });
+    } catch (error) {
+      console.error('Failed to post alert:', error);
+    }
+  };
+
+  const handleProfileClick = () => {
+    if (currentUser) {
+      setView('OPERATIONS');
+    } else {
+      setView('LOGIN');
     }
   };
 
@@ -31,14 +77,54 @@ const App: React.FC = () => {
     );
   }
 
+  if (view === 'LOGIN') {
+    return <MapperLogin onLoginSuccess={(user) => { setCurrentUser(user); setView('OPERATIONS'); }} onBack={() => setView('HOME')} />;
+  }
+
+  if (view === 'OPERATIONS') {
+    return (
+      <div className="min-h-screen w-full bg-[#050505] text-[#e5e5e5]">
+        <Header onExploreMap={() => setView('MAP')} onVisualProof={() => setView('UPLOAD')} onProfile={handleProfileClick} onHome={() => setView('HOME')} />
+        <div className="pt-24">
+          <OperationsPortal user={currentUser} onNavigate={setView} onReportAlert={handleNewAlert} />
+        </div>
+        <Footer onWhitepaper={() => setView('WHITEPAPER')} onPrivacy={() => setView('PRIVACY')} onLegal={() => setView('LEGAL')} />
+      </div>
+    );
+  }
+
+  if (view === 'PROFILE') {
+    return (
+      <div className="min-h-screen w-full bg-[#050505] text-[#e5e5e5]">
+        <Header onExploreMap={() => setView('MAP')} onVisualProof={() => setView('UPLOAD')} onProfile={handleProfileClick} onHome={() => setView('HOME')} />
+        <div className="pt-24">
+          <MapperProfile user={currentUser} onBack={() => setView('HOME')} />
+        </div>
+        <Footer onWhitepaper={() => setView('WHITEPAPER')} onPrivacy={() => setView('PRIVACY')} onLegal={() => setView('LEGAL')} />
+      </div>
+    );
+  }
+
+  if (view === 'WHITEPAPER') {
+    return <Whitepaper onBack={() => setView('HOME')} />;
+  }
+
+  if (view === 'PRIVACY') {
+    return <PrivacyPolicy onBack={() => setView('HOME')} />;
+  }
+
+  if (view === 'LEGAL') {
+    return <LegalNotice onBack={() => setView('HOME')} />;
+  }
+
   if (view === 'UPLOAD') {
     return (
       <div className="min-h-screen w-full bg-[#050505] text-[#e5e5e5]">
-        <Header onExploreMap={() => setView('MAP')} onVisualProof={() => setView('UPLOAD')} />
+        <Header onExploreMap={() => setView('MAP')} onVisualProof={() => setView('UPLOAD')} onProfile={handleProfileClick} onHome={() => setView('HOME')} />
         <div className="pt-24 pb-20">
           <AnonymousUploadPortal onReportAlert={handleNewAlert} onBack={() => setView('HOME')} />
         </div>
-        <Footer />
+        <Footer onWhitepaper={() => setView('WHITEPAPER')} onPrivacy={() => setView('PRIVACY')} onLegal={() => setView('LEGAL')} />
       </div>
     );
   }
@@ -46,11 +132,11 @@ const App: React.FC = () => {
   if (view === 'ONBOARDING') {
     return (
       <div className="min-h-screen w-full bg-[#050505] text-[#e5e5e5]">
-        <Header onExploreMap={() => setView('MAP')} onVisualProof={() => setView('UPLOAD')} />
+        <Header onExploreMap={() => setView('MAP')} onVisualProof={() => setView('UPLOAD')} onProfile={handleProfileClick} onHome={() => setView('HOME')} />
         <div className="pt-24 pb-20">
           <OnboardingPortal onComplete={() => setView('DRIVER')} onCancel={() => setView('HOME')} />
         </div>
-        <Footer />
+        <Footer onWhitepaper={() => setView('WHITEPAPER')} onPrivacy={() => setView('PRIVACY')} onLegal={() => setView('LEGAL')} />
       </div>
     );
   }
@@ -58,11 +144,11 @@ const App: React.FC = () => {
   if (view === 'DRIVER') {
     return (
       <div className="min-h-screen w-full bg-[#050505] text-[#e5e5e5]">
-        <Header onExploreMap={() => setView('MAP')} onVisualProof={() => setView('UPLOAD')} />
+        <Header onExploreMap={() => setView('MAP')} onVisualProof={() => setView('UPLOAD')} onProfile={handleProfileClick} onHome={() => setView('HOME')} />
         <div className="pt-24">
-          <DriverPortal onReportAlert={handleNewAlert} />
+          <DriverPortal onReportAlert={handleNewAlert} user={currentUser} onOpenProfile={handleProfileClick} />
         </div>
-        <Footer />
+        <Footer onWhitepaper={() => setView('WHITEPAPER')} onPrivacy={() => setView('PRIVACY')} onLegal={() => setView('LEGAL')} />
         <button 
           onClick={() => setView('HOME')}
           className="fixed bottom-8 left-8 z-[2001] bg-white text-black px-6 py-3 rounded-full font-black text-[10px] tracking-widest uppercase shadow-2xl"
@@ -75,9 +161,9 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-[#050505] text-[#e5e5e5] selection:bg-orange-500/30">
-      <Header onExploreMap={() => setView('MAP')} onVisualProof={() => setView('UPLOAD')} />
+      <Header onExploreMap={() => setView('LOGIN')} onVisualProof={() => setView('UPLOAD')} onProfile={handleProfileClick} onHome={() => setView('HOME')} />
       <main>
-        <HeroSection onExploreMap={() => setView('MAP')} />
+        <HeroSection onExploreMap={() => setView('MAP')} onLogin={() => setView('LOGIN')} />
         
         {/* Driver Quick Access */}
         <div className="px-6 md:px-12 py-12 max-w-7xl mx-auto">
@@ -99,7 +185,7 @@ const App: React.FC = () => {
         <IncentiveSection onOnboard={() => setView('ONBOARDING')} />
         <FeaturesSection />
       </main>
-      <Footer />
+      <Footer onWhitepaper={() => setView('WHITEPAPER')} onPrivacy={() => setView('PRIVACY')} onLegal={() => setView('LEGAL')} />
     </div>
   );
 };

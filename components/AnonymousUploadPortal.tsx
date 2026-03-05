@@ -246,6 +246,7 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
                       {isAnonymizing ? 'Anonymizing Metadata...' : 'Executing Intelligence Audit...'}
                     </h4>
                     <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.4em]">PIXEL | METADATA | SEVERITY | CONTEXT | INTEL</p>
+                    <div className="text-orange-500 text-sm font-bold mt-2">{uploadProgress}% Complete</div>
                  </div>
               </div>
             )}

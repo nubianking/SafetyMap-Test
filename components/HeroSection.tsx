@@ -4,9 +4,10 @@ import { ICONS } from '../constants';
 
 interface HeroSectionProps {
   onExploreMap?: () => void;
+  onLogin?: () => void;
 }
 
-const HeroSection: React.FC<HeroSectionProps> = ({ onExploreMap }) => {
+const HeroSection: React.FC<HeroSectionProps> = ({ onExploreMap, onLogin }) => {
   return (
     <section className="relative pt-64 pb-40 px-6 md:px-12 bg-black overflow-hidden">
       {/* Background Ambience */}
@@ -30,7 +31,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onExploreMap }) => {
           
           <div className="flex flex-col sm:flex-row gap-6 w-full max-w-md animate-in fade-in slide-in-from-bottom duration-1000">
             <button 
-              onClick={onExploreMap}
+              onClick={onLogin}
               className="flex-1 bg-[#ff5f00] text-white font-black text-[12px] tracking-[0.2em] py-7 rounded-3xl uppercase btn-hover-effect"
             >
               Launch Session

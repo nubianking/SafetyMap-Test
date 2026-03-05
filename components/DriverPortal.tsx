@@ -3,19 +3,46 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ICONS } from '../constants';
 import { GoogleGenAI, Type } from "@google/genai";
 import { LiveAlert, ForensicMetadata, TechnicalTelemetry, VerificationScore, AudioEvent } from '../types';
+import { calculateRGTWeight } from '../services/RewardEngine';
+import { SentryTelemetry } from '../types/rewards';
+import { useSentryRewards } from '../hooks/useSentryRewards';
+import { OracleDashboard } from './mapper/OracleDashboard';
+import { ReportButton } from './mapper/ReportButton';
+import { UserProfileData } from './profile/MapperProfile';
+import { mapsService } from '../services/mapsService';
+import { IncidentUploadModal } from './mapper/IncidentUploadModal';
+import { User } from 'lucide-react';
 
 interface DriverPortalProps {
   onReportAlert?: (alert: LiveAlert) => void;
+  user?: UserProfileData | null;
+  onOpenProfile?: () => void;
 }
 
-const DriverPortal: React.FC<DriverPortalProps> = ({ onReportAlert }) => {
+const DriverPortal: React.FC<DriverPortalProps> = ({ onReportAlert, user, onOpenProfile }) => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [tokens, setTokens] = useState(1250);
+  const [trustRank, setTrustRank] = useState<'Watcher' | 'Sentinel' | 'Oracle' | 'Apex'>('Oracle');
+  const [isSlashing, setIsSlashing] = useState(false);
+  const [slashTimer, setSlashTimer] = useState<number | null>(null);
   const [detectionResults, setDetectionResults] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [nodeStatus, setNodeStatus] = useState<'IDLE' | 'CALIBRATING' | 'ACTIVE' | 'SECURE'>('IDLE');
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
-  const [deviceFingerprint] = useState(() => `NODE-X-${Math.random().toString(36).substr(2, 6).toUpperCase()}`);
+  const [currentAddress, setCurrentAddress] = useState<string | null>(null);
+  const [deviceFingerprint] = useState(() => user ? `NODE-${user.alias.toUpperCase()}` : `NODE-X-${Math.random().toString(36).toUpperCase().substr(2, 6)}`);
+  const [uploadModalType, setUploadModalType] = useState<'video' | 'audio' | 'image' | null>(null);
+
+  const [currentTelemetry, setCurrentTelemetry] = useState<SentryTelemetry>({
+    trustRank: 'Oracle',
+    geminiQualityScore: 1.0,
+    isHighSeverityEvent: false,
+    isFirstReporter: false,
+    isInGrayZone: false
+  });
+
+  const { sessionTotal, currentRate, isSyncing } = useSentryRewards(currentTelemetry);
+  const [audioLevel, setAudioLevel] = useState<number[]>(new Array(20).fill(0));
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -24,7 +51,20 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ onReportAlert }) => {
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.watchPosition(
-        (pos) => setCurrentLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setCurrentLocation({ lat, lng });
+          
+          try {
+            const data = await mapsService.geocode(`${lat},${lng}`);
+            if (data.results && data.results.length > 0) {
+              setCurrentAddress(data.results[0].formatted_address);
+            }
+          } catch (error) {
+            console.error("Geocoding failed:", error);
+          }
+        },
         null, { enableHighAccuracy: true }
       );
     }
@@ -172,6 +212,25 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ onReportAlert }) => {
       const result = JSON.parse(response.text || '{}');
       setDetectionResults(result);
 
+      // 1. Slashing Guardrail Check
+      if (result.forensics.deepfake_probability > 0.85 || result.justification.toLowerCase().includes('synthetic')) {
+        setIsSlashing(true);
+        setTrustRank('Watcher');
+        setTokens(prev => Math.max(0, prev - 500)); // Slashing penalty
+        setSlashTimer(Date.now() + 86400000); // 24h freeze
+        return;
+      }
+
+      // 2. Update Telemetry for Reward Engine
+      const newTelemetry: SentryTelemetry = {
+        trustRank,
+        geminiQualityScore: result.confidence,
+        isHighSeverityEvent: result.severity === 'CRITICAL' || result.severity === 'HIGH',
+        isFirstReporter: Math.random() > 0.7,
+        isInGrayZone: Math.random() > 0.8,
+      };
+      setCurrentTelemetry(newTelemetry);
+
       if (onReportAlert && currentLocation && (result.detected_hazards.length > 0 || result.anomalies.length > 0 || result.severity === 'CRITICAL')) {
         onReportAlert({
           id: `BEH-${Date.now()}`,
@@ -215,7 +274,6 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ onReportAlert }) => {
           },
           confidence: result.confidence
         } as any);
-        setTokens(prev => prev + 125); // Increased reward for predictive data
       }
     } catch (error) {
       console.error("Pulse Audit Failed", error);
@@ -230,230 +288,228 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ onReportAlert }) => {
     return () => clearInterval(interval);
   }, [analyzeSegment]);
 
-  return (
-    <div className="min-h-screen bg-black p-6 md:p-12 pb-32">
-      <div className="max-w-7xl mx-auto space-y-12">
-        
-        {/* HUD Top Bar */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
-           <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                 <div className={`w-3 h-3 rounded-full ${isStreaming ? 'bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.8)]' : 'bg-zinc-800'} animate-pulse`}></div>
-                 <span className="text-[10px] font-black text-zinc-500 tracking-[0.6em] uppercase">Tactical Intelligence Node: {nodeStatus}</span>
-              </div>
-              <h2 className="text-5xl md:text-8xl font-black tracking-tighter italic uppercase leading-none">
-                 PREDICTIVE <span className="text-[#ff5f00]">GRID</span>
-              </h2>
-           </div>
+  // Simulated Acoustic Spectrogram
+  useEffect(() => {
+    if (!isStreaming) return;
+    const interval = setInterval(() => {
+      setAudioLevel(prev => prev.map(() => Math.random() * 100));
+    }, 100);
+    return () => clearInterval(interval);
+  }, [isStreaming]);
 
-           <div className="flex gap-4 w-full md:w-auto">
-              <div className="flex-1 bg-zinc-900/50 backdrop-blur-3xl border border-white/5 p-6 rounded-3xl min-w-[200px]">
-                 <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Intelligence Yield</div>
-                 <div className="text-3xl font-black text-white italic tracking-tighter">{tokens} <span className="text-xs text-[#ff5f00]">RGT</span></div>
+  const handleManualReport = () => {
+    if (!isStreaming) return;
+    // Trigger a 3-second retro-capture simulation
+    analyzeSegment();
+  };
+
+  const handleQuickReport = (type: string) => {
+    if (!currentLocation) return;
+    if (onReportAlert) {
+      onReportAlert({
+        id: `QR-${Date.now()}`,
+        label: type.toUpperCase(),
+        severity: 'HIGH',
+        location: currentLocation,
+        timestamp: Date.now(),
+        detectedObjects: [type],
+        anomalies: [],
+        temporalTrend: 'ESCALATING',
+        predictiveRisk: { probability: 0.8, timeframe: 'Immediate', projectedOutcome: 'Requires intervention' },
+        riskVectors: [],
+        boundingBoxes: [],
+        verificationScore: { aggregate: 85, objectConfidence: 90, deepfakeScore: 95, metadataValidity: 100, locationMatch: 100, audioCorrelation: 80 },
+        audioEvents: [],
+        emergencyResponse: `Dispatch units for ${type}`,
+        crowdPanicLevel: 0.5,
+        forensics: {
+          integrityScore: 95,
+          isSynthetic: false,
+          synthIdDetected: false,
+          c2paVerified: true,
+          deepfakeProbability: 0.05,
+          tamperingDetected: false,
+          fraudRiskIndex: 5,
+          forensicNotes: 'Manual quick report.'
+        },
+        telemetry: {
+          mediaHash: 'none',
+          deviceId: deviceFingerprint,
+          gpsPrecision: 0.99,
+          gyroValidation: true,
+          uploadLatency: 100,
+          timestampValid: true,
+          gpsValid: true,
+          encryptionProtocol: "TLS 1.3"
+        },
+        confidence: 0.9
+      } as any);
+    }
+  };
+
+  const QuickReportButton = ({ icon, label, colorClass }: { icon: string, label: string, colorClass: string }) => (
+    <button 
+      onClick={() => handleQuickReport(label)}
+      className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border transition-all active:scale-95 ${colorClass}`}
+    >
+      <span className="text-2xl">{icon}</span>
+      <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
+    </button>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#050505] text-white flex flex-col md:max-w-md md:mx-auto md:border-x border-white/10 relative">
+      {/* Live Map / Video Feed Header */}
+      <div className="relative h-64 bg-zinc-950 overflow-hidden shrink-0 border-b border-white/10">
+         {isStreaming ? (
+           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover grayscale-[0.5] contrast-[1.2]" />
+         ) : (
+           <div className="w-full h-full flex flex-col items-center justify-center gap-4 opacity-50">
+              <ICONS.Map className="w-12 h-12 text-zinc-600" />
+              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Map / Camera Offline</p>
+           </div>
+         )}
+         
+         {/* Overlay for Nearby Alerts */}
+         <div className="absolute top-4 left-4 right-4 flex justify-between pointer-events-none">
+            <div className="bg-black/80 backdrop-blur px-3 py-2 rounded-full border border-white/10 text-[9px] font-black uppercase tracking-widest text-white flex items-center gap-2 shadow-xl">
+               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+               2 Alerts Nearby
+            </div>
+            <div className="flex gap-2 pointer-events-auto">
+              {onOpenProfile && (
+                <button 
+                  onClick={onOpenProfile}
+                  className="bg-black/80 backdrop-blur w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-zinc-800 transition-colors shadow-xl"
+                >
+                  <User className="w-4 h-4 text-zinc-400" />
+                </button>
+              )}
+              <div className="bg-black/80 backdrop-blur px-3 py-2 rounded-full border border-orange-500/30 text-[9px] font-black uppercase tracking-widest text-orange-500 shadow-xl pointer-events-none">
+                 Risk Zone: HIGH
               </div>
-              <div className="flex-1 bg-zinc-900/50 backdrop-blur-3xl border border-white/5 p-6 rounded-3xl min-w-[160px]">
-                 <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Node Rank</div>
-                 <div className="text-3xl font-black text-blue-500 italic tracking-tighter">ORACLE</div>
-              </div>
+            </div>
+         </div>
+
+         {/* Location Overlay */}
+         <div className="absolute bottom-4 left-4 right-4 pointer-events-none">
+            <div className="bg-black/80 backdrop-blur px-4 py-2 rounded-xl border border-white/10 text-[9px] font-mono text-zinc-400 truncate shadow-xl">
+               {currentAddress ? currentAddress : `COORD: ${currentLocation?.lat.toFixed(4)}, ${currentLocation?.lng.toFixed(4)}`}
+            </div>
+         </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32 custom-scrollbar">
+        
+        {/* Oracle Sentry Status */}
+        <div className="bg-zinc-900/80 border border-white/10 rounded-3xl p-5 flex justify-between items-center shadow-lg">
+           <div>
+             <h3 className="text-sm font-black uppercase tracking-widest text-white flex items-center gap-2">
+               Oracle Sentry
+               {isStreaming && <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />}
+             </h3>
+             <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-1">AI Hazard Detection</p>
+           </div>
+           <button 
+             onClick={isStreaming ? stopStream : startStream} 
+             className={`px-6 py-3 rounded-2xl font-black text-xs tracking-widest uppercase transition-all shadow-lg active:scale-95 ${isStreaming ? 'bg-green-500/20 text-green-500 border border-green-500/50' : 'bg-zinc-800 text-zinc-400 border border-white/5 hover:bg-zinc-700'}`}
+           >
+             {isStreaming ? 'ON' : 'OFF'}
+           </button>
+        </div>
+
+        {/* Quick Report Buttons */}
+        <div className="space-y-3">
+           <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-2">Quick Report</h3>
+           <div className="grid grid-cols-2 gap-3">
+              <QuickReportButton icon="🚗" label="Accident" colorClass="bg-orange-500/10 text-orange-500 border-orange-500/20 hover:bg-orange-500/20" />
+              <QuickReportButton icon="🔫" label="Weapon" colorClass="bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20" />
+              <QuickReportButton icon="🔥" label="Fire" colorClass="bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20" />
+              <QuickReportButton icon="🚨" label="Robbery" colorClass="bg-purple-500/10 text-purple-500 border-purple-500/20 hover:bg-purple-500/20" />
+              <QuickReportButton icon="⚠️" label="Road Hazard" colorClass="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 hover:bg-yellow-500/20" />
+              <QuickReportButton icon="🚑" label="Medical" colorClass="bg-blue-500/10 text-blue-500 border-blue-500/20 hover:bg-blue-500/20" />
            </div>
         </div>
 
-        <div className="grid lg:grid-cols-4 gap-12">
-           <div className="lg:col-span-3 space-y-8">
-              <div className={`relative aspect-video bg-zinc-950 rounded-[4rem] border-2 overflow-hidden shadow-[0_0_80px_rgba(0,0,0,1)] transition-all duration-700 ${isAnalyzing ? 'border-[#ff5f00]/50 scale-[0.99] shadow-[0_0_50px_rgba(255,95,0,0.2)]' : 'border-white/5'}`}>
-                 {isStreaming ? (
-                   <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover grayscale-[0.8] contrast-[1.4]" />
-                 ) : (
-                   <div className="w-full h-full flex flex-col items-center justify-center gap-8">
-                      <div className="relative">
-                         <div className="absolute inset-0 bg-[#ff5f00] blur-[80px] opacity-20 animate-pulse"></div>
-                         <ICONS.Scan className="w-32 h-32 text-zinc-900 relative z-10" />
-                      </div>
-                      <p className="text-[11px] font-black text-zinc-700 uppercase tracking-[0.8em]">Signal Offline</p>
-                   </div>
-                 )}
-
-                 {/* Visual HUD Overlay */}
-                 {isStreaming && (
-                    <div className="absolute inset-0 pointer-events-none p-10 flex flex-col justify-between">
-                       <div className="flex justify-between items-start">
-                          <div className={`bg-black/80 backdrop-blur border px-6 py-3 rounded-2xl flex items-center gap-4 transition-colors ${isAnalyzing ? 'border-[#ff5f00]/50' : 'border-white/10'}`}>
-                             <div className={`w-2 h-2 rounded-full animate-ping ${isAnalyzing ? 'bg-[#ff5f00]' : 'bg-red-600'}`}></div>
-                             <span className="text-[10px] font-black text-white tracking-[0.2em] uppercase">
-                               {isAnalyzing ? 'Calculating Risk Vectors' : 'Live Intelligence Feed v6.0'}
-                             </span>
-                          </div>
-                          <div className="text-right">
-                             <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Latency</div>
-                             <div className="text-xs font-mono text-white opacity-40">12ms</div>
-                          </div>
-                       </div>
-
-                       {/* Risk Vector Visualization (Simulated) */}
-                       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full flex items-center justify-center opacity-20">
-                          <div className="w-[60%] h-[60%] border border-white/10 rounded-full animate-[spin_20s_linear_infinite] flex items-center justify-center">
-                             <div className="w-full h-[1px] bg-white/20"></div>
-                             <div className="w-[1px] h-full bg-white/20 absolute"></div>
-                          </div>
-                       </div>
-
-                       <div className="flex justify-between items-end">
-                          <div className="space-y-2">
-                             <div className="bg-black/60 backdrop-blur px-4 py-2 rounded-xl text-[9px] font-mono text-zinc-400">COORD: {currentLocation?.lat.toFixed(4)}, {currentLocation?.lng.toFixed(4)}</div>
-                             <div className="bg-black/60 backdrop-blur px-4 py-2 rounded-xl text-[9px] font-mono text-zinc-400">NODE_ID: {deviceFingerprint}</div>
-                          </div>
-                          <div className="flex items-center gap-6 bg-blue-600/10 backdrop-blur border border-blue-500/20 px-8 py-4 rounded-[2rem]">
-                             <ICONS.Cpu className="w-5 h-5 text-blue-500 animate-pulse" />
-                             <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Predictive Engine Active</span>
-                          </div>
-                       </div>
-                    </div>
-                 )}
-
-                 {/* AI Intelligence HUD */}
-                 {isStreaming && detectionResults && (
-                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl pointer-events-none animate-in zoom-in duration-500">
-                      <div className={`bg-black/90 backdrop-blur-3xl border p-10 rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,1)] space-y-8 ${detectionResults.severity === 'CRITICAL' ? 'border-red-500/40' : 'border-[#ff5f00]/20'}`}>
-                         <div className="flex justify-between items-center">
-                            <div className="space-y-1">
-                               <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.5em]">Predictive Outcome</span>
-                               <div className="text-2xl font-black text-white italic tracking-tighter">{detectionResults.predictive_risk.projected_outcome}</div>
-                            </div>
-                            <div className="flex flex-col items-end gap-2">
-                               <span className={`px-5 py-1.5 rounded-full text-[10px] font-black text-white uppercase tracking-widest ${detectionResults.severity === 'CRITICAL' ? 'bg-red-600' : 'bg-[#ff5f00]'}`}>
-                                  {detectionResults.severity} RISK
-                               </span>
-                               <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Confidence: {(detectionResults.confidence * 100).toFixed(0)}%</span>
-                            </div>
-                         </div>
-                         
-                         <div className="grid grid-cols-2 gap-8">
-                            <div className="space-y-6">
-                               <div className="space-y-4">
-                                  <h4 className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Active Anomalies</h4>
-                                  <div className="flex flex-col gap-2">
-                                     {detectionResults.anomalies.map((a: any, i: number) => (
-                                        <div key={i} className="bg-purple-600/10 border border-purple-500/20 px-4 py-2 rounded-xl">
-                                           <div className="text-[9px] font-black text-purple-400 uppercase tracking-widest">{a.type}</div>
-                                           <div className="text-[8px] font-bold text-zinc-500 uppercase truncate">{a.description}</div>
-                                        </div>
-                                     ))}
-                                  </div>
-                               </div>
-                               <div className="space-y-4">
-                                  <h4 className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Threat Vectors</h4>
-                                  <div className="flex flex-wrap gap-2">
-                                     {detectionResults.detected_hazards.map((h: string, i: number) => (
-                                        <span key={i} className="bg-[#ff5f00]/10 border border-[#ff5f00]/20 text-[8px] font-black px-3 py-1.5 rounded-lg text-[#ff5f00] uppercase tracking-widest">
-                                           {h}
-                                        </span>
-                                     ))}
-                                  </div>
-                               </div>
-                            </div>
-
-                            <div className="space-y-6">
-                               <div className="space-y-4">
-                                  <h4 className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Risk Vectors</h4>
-                                  <div className="space-y-3">
-                                     {detectionResults.risk_vectors.map((v: any, i: number) => (
-                                        <div key={i} className="space-y-1">
-                                           <div className="flex justify-between text-[8px] font-black uppercase tracking-widest">
-                                              <span className="text-zinc-400">{v.type}</span>
-                                              <span className="text-white">{(v.magnitude * 100).toFixed(0)}%</span>
-                                           </div>
-                                           <div className="w-full bg-zinc-900 h-1 rounded-full overflow-hidden">
-                                              <div className="bg-blue-500 h-full transition-all duration-1000" style={{ width: `${v.magnitude * 100}%` }}></div>
-                                           </div>
-                                        </div>
-                                     ))}
-                                  </div>
-                               </div>
-                               <div className="bg-zinc-900/50 p-6 rounded-2xl border border-white/5">
-                                  <div className="text-[8px] font-black text-zinc-600 uppercase mb-2 tracking-[0.3em]">Escalation Probability</div>
-                                  <div className="text-2xl font-black text-white italic tracking-tighter">{(detectionResults.predictive_risk.probability * 100).toFixed(0)}%</div>
-                                  <div className="text-[8px] font-bold text-zinc-500 uppercase mt-1">Timeframe: {detectionResults.predictive_risk.timeframe}</div>
-                               </div>
-                            </div>
-                         </div>
-
-                         <div className="pt-6 border-t border-white/5">
-                            <p className="text-[11px] text-zinc-300 font-medium italic leading-relaxed border-l-2 border-[#ff5f00]/50 pl-4">"{detectionResults.justification}"</p>
-                         </div>
-                      </div>
-                   </div>
-                 )}
-              </div>
-
-              <div className="flex flex-col md:flex-row gap-8 items-center bg-zinc-900/40 p-10 rounded-[4rem] border border-white/5 backdrop-blur-3xl">
-                 <div className="flex-1 space-y-2 text-center md:text-left">
-                    <h4 className="text-2xl font-black italic uppercase tracking-tighter text-white">Neural Persistence</h4>
-                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.3em]">Vectors: CALCULATED | Risk: PREDICTED | Node: SYNCHRONIZED</p>
-                 </div>
-                 <div className="flex gap-4">
-                    <button 
-                       onClick={isStreaming ? stopStream : startStream}
-                       className={`w-64 py-7 rounded-[2rem] font-black text-[12px] tracking-[0.3em] uppercase transition-all shadow-2xl active:scale-95 flex items-center justify-center gap-3 ${isStreaming ? 'bg-zinc-800 text-white' : 'bg-[#ff5f00] text-white border border-[#ff5f00]/20 hover:scale-[1.02]'}`}
-                    >
-                       {isStreaming ? <ICONS.Zap className="w-5 h-5 text-[#ff5f00]" /> : <ICONS.Plus className="w-5 h-5" />}
-                       {isStreaming ? 'Disconnect Node' : 'Initialize Oracle'}
-                    </button>
-                 </div>
-              </div>
+        {/* Capture Evidence */}
+        <div className="space-y-3">
+           <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-2">Capture Evidence</h3>
+           <div className="grid grid-cols-3 gap-3">
+              <button 
+                onClick={() => setUploadModalType('image')}
+                className="bg-zinc-900/80 border border-white/10 p-4 rounded-2xl flex flex-col items-center justify-center gap-3 hover:bg-zinc-800 transition-colors active:scale-95 shadow-lg"
+              >
+                <ICONS.Camera className="w-6 h-6 text-zinc-400" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Photo</span>
+              </button>
+              <button 
+                onClick={() => setUploadModalType('video')}
+                className="bg-zinc-900/80 border border-white/10 p-4 rounded-2xl flex flex-col items-center justify-center gap-3 hover:bg-zinc-800 transition-colors active:scale-95 shadow-lg"
+              >
+                <ICONS.Video className="w-6 h-6 text-zinc-400" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Video</span>
+              </button>
+              <button 
+                onClick={() => setUploadModalType('audio')}
+                className="bg-zinc-900/80 border border-white/10 p-4 rounded-2xl flex flex-col items-center justify-center gap-3 hover:bg-zinc-800 transition-colors active:scale-95 shadow-lg"
+              >
+                <ICONS.Mic className="w-6 h-6 text-zinc-400" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Audio</span>
+              </button>
            </div>
+        </div>
 
-           <div className="space-y-8">
-              <div className="bg-[#0c0c0c] border border-white/5 rounded-[4rem] p-12 space-y-12 shadow-2xl">
-                 <div className="flex items-center justify-between">
-                    <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-zinc-600">Global Intel</h3>
-                    <ICONS.Activity className="w-5 h-5 text-[#ff5f00]" />
-                 </div>
+        {/* AI Incident Preview */}
+        {detectionResults && (
+          <div className="bg-zinc-900/90 border border-[#ff5f00]/40 rounded-3xl p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom-4">
+             <div className="flex justify-between items-center">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-[#ff5f00] flex items-center gap-2">
+                  <ICONS.Cpu className="w-4 h-4" />
+                  AI Incident Preview
+                </h3>
+                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 bg-black/50 px-2 py-1 rounded-lg">
+                  Conf: {(detectionResults.confidence * 100).toFixed(0)}%
+                </span>
+             </div>
+             <div className="text-sm font-bold text-white leading-relaxed">
+                {detectionResults.anomalies[0]?.description || 'Anomaly detected in feed.'}
+             </div>
+             <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setDetectionResults(null)} // In a real app, this would submit
+                  className="flex-1 bg-[#ff5f00] text-black font-black text-[10px] uppercase tracking-widest py-4 rounded-2xl shadow-lg active:scale-95 transition-transform"
+                >
+                  Confirm & Submit
+                </button>
+                <button 
+                  onClick={() => setDetectionResults(null)} 
+                  className="flex-1 bg-zinc-800 text-white font-black text-[10px] uppercase tracking-widest py-4 rounded-2xl shadow-lg active:scale-95 transition-transform border border-white/5"
+                >
+                  Dismiss
+                </button>
+             </div>
+          </div>
+        )}
 
-                 <div className="space-y-6">
-                    <div className="bg-zinc-900/40 p-6 rounded-3xl border border-white/5">
-                       <div className="text-[9px] font-black text-zinc-600 uppercase mb-2">Predictive Accuracy</div>
-                       <div className="text-3xl font-black text-white italic tracking-tighter">94.2%</div>
-                    </div>
-                    
-                    <div className="space-y-5 pt-4">
-                       {[
-                         { label: 'Risk Vectors', value: detectionResults?.risk_vectors?.length || '0' },
-                         { label: 'Escalation Alert', value: detectionResults?.predictive_risk?.probability > 0.7 ? 'HIGH' : 'LOW' },
-                         { label: 'Grid Contribution', value: '+240 RGT' }
-                       ].map((stat, i) => (
-                         <div key={i} className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                            <span className="text-zinc-600">{stat.label}</span>
-                            <span className="text-white">{stat.value}</span>
-                         </div>
-                       ))}
-                    </div>
-                 </div>
-
-                 <div className="p-8 bg-[#ff5f00]/5 rounded-[2rem] border border-[#ff5f00]/10 italic text-[10px] text-zinc-500 leading-relaxed font-medium">
-                    {isAnalyzing ? (
-                      <span className="flex items-center gap-2 animate-pulse text-[#ff5f00]">
-                        <ICONS.Cpu className="w-4 h-4" />
-                        RUNNING PREDICTIVE MODELS...
-                      </span>
-                    ) : (
-                      `"${detectionResults?.justification || "Oracle node operational. Monitoring for behavioral precursors to escalation."}"`
-                    )}
-                 </div>
-              </div>
-
-              <div className="bg-blue-600/5 border border-blue-500/10 rounded-[3rem] p-10 flex flex-col gap-6">
-                 <div className="flex items-center gap-3">
-                    <ICONS.Cpu className="w-5 h-5 text-blue-500" />
-                    <span className="text-[11px] font-black text-blue-500 uppercase tracking-widest">Oracle Logic</span>
-                 </div>
-                 <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest leading-loose">
-                    Oracle nodes use predictive temporal analysis to identify risks before they manifest as incidents.
-                 </p>
-              </div>
-           </div>
+        {/* Rewards + Trust Rank */}
+        <div className="relative mt-8">
+           <OracleDashboard telemetry={currentTelemetry} />
         </div>
       </div>
       <canvas ref={canvasRef} className="hidden" />
+
+      {uploadModalType && (
+        <IncidentUploadModal
+          type={uploadModalType}
+          onClose={() => setUploadModalType(null)}
+          onSubmit={(metadata) => {
+            console.log("Uploaded incident metadata:", metadata);
+            // In a real app, this would trigger an alert on the map
+          }}
+          currentLocation={currentLocation}
+          deviceFingerprint={deviceFingerprint}
+        />
+      )}
     </div>
   );
 };

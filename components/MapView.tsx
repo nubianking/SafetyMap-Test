@@ -2,6 +2,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MOCK_INCIDENTS, ICONS, HAZARD_TYPES } from '../constants';
 import { LiveAlert } from '../types';
+import { useSentryRewards } from '../hooks/useSentryRewards';
+import { SentryTelemetry } from '../types/rewards';
+import { mapsService } from '../services/mapsService';
 
 interface MapViewProps {
   onBack?: () => void;
@@ -32,10 +35,31 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
   const [gridLog, setGridLog] = useState<string[]>(['Grid Secure', 'Forensic Audit Armed', 'Landmark OCR Syncing...']);
   const [markers, setMarkers] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>(INITIAL_DRIVERS);
+  const [activeRouteInfo, setActiveRouteInfo] = useState<{ eta: string, distance: string, fare: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const driverMarkersRef = useRef<any[]>([]);
+  const routeLayerRef = useRef<any>(null);
+
+  // Tactical HUD Rewards Integration
+  const [mockTelemetry, setMockTelemetry] = useState<SentryTelemetry>({
+    trustRank: 'Oracle',
+    geminiQualityScore: 0.95,
+    isHighSeverityEvent: false,
+    isFirstReporter: false,
+    isInGrayZone: false
+  });
+
+  const { sessionTotal, currentRate, isSyncing } = useSentryRewards(mockTelemetry);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
+
+    // Ensure Leaflet is available
+    if (!(window as any).L) {
+      console.warn('Leaflet not loaded yet');
+      return;
+    }
 
     const map = (window as any).L.map(mapContainerRef.current, {
       center: [6.5244, 3.3792],
@@ -46,7 +70,13 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
 
     (window as any).L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
     mapRef.current = map;
-    return () => { if (mapRef.current) mapRef.current.remove(); };
+    
+    return () => { 
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
   }, []);
 
   // Driver movement simulation (updates every 15 seconds)
@@ -78,11 +108,90 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch Route and ETA when activeDriver changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !activeDriver) {
+      if (routeLayerRef.current && map) {
+        map.removeLayer(routeLayerRef.current);
+        routeLayerRef.current = null;
+      }
+      setActiveRouteInfo(null);
+      return;
+    }
+
+    const fetchRouteData = async () => {
+      try {
+        const origin = `${activeDriver.location.lat},${activeDriver.location.lng}`;
+        const destination = `${activeDriver.destination.lat},${activeDriver.destination.lng}`;
+        
+        // Fetch Distance Matrix for ETA and Distance
+        const distanceData = await mapsService.getDistanceMatrix(origin, destination);
+        if (distanceData.rows?.[0]?.elements?.[0]?.status === 'OK') {
+          const element = distanceData.rows[0].elements[0];
+          const distanceValue = element.distance.value; // in meters
+          const baseFare = 500; // Base fare in local currency (e.g., NGN)
+          const perKmFare = 150;
+          const calculatedFare = baseFare + (distanceValue / 1000) * perKmFare;
+          
+          setActiveRouteInfo({
+            eta: element.duration.text,
+            distance: element.distance.text,
+            fare: `₦${calculatedFare.toFixed(2)}`
+          });
+        }
+
+        // Fetch Directions for Polyline
+        const directionsData = await mapsService.getDirections(origin, destination);
+        if (directionsData.routes && directionsData.routes.length > 0) {
+          const encodedPolyline = directionsData.routes[0].overview_polyline.points;
+          
+          // Simple polyline decoder (since we don't have google.maps library loaded)
+          const decodePolyline = (str: string, precision = 5) => {
+            let index = 0, lat = 0, lng = 0, coordinates = [], shift = 0, result = 0, byte = null, latitude_change, longitude_change, factor = Math.pow(10, precision);
+            while (index < str.length) {
+              byte = null; shift = 0; result = 0;
+              do { byte = str.charCodeAt(index++) - 63; result |= (byte & 0x1f) << shift; shift += 5; } while (byte >= 0x20);
+              latitude_change = ((result & 1) ? ~(result >> 1) : (result >> 1));
+              shift = result = 0;
+              do { byte = str.charCodeAt(index++) - 63; result |= (byte & 0x1f) << shift; shift += 5; } while (byte >= 0x20);
+              longitude_change = ((result & 1) ? ~(result >> 1) : (result >> 1));
+              lat += latitude_change; lng += longitude_change;
+              coordinates.push([lat / factor, lng / factor]);
+            }
+            return coordinates;
+          };
+
+          const points = decodePolyline(encodedPolyline);
+          
+          if (routeLayerRef.current) {
+            map.removeLayer(routeLayerRef.current);
+          }
+          
+          routeLayerRef.current = (window as any).L.polyline(points, {
+            color: '#22c55e',
+            weight: 4,
+            opacity: 0.8,
+            dashArray: '10, 10',
+            lineCap: 'round'
+          }).addTo(map);
+          
+          map.fitBounds(routeLayerRef.current.getBounds(), { padding: [50, 50] });
+        }
+      } catch (error) {
+        console.error("Failed to fetch route data:", error);
+      }
+    };
+
+    fetchRouteData();
+  }, [activeDriver]);
+
   // Render Alert Markers
   useEffect(() => {
-    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (!map) return;
 
-    markers.forEach(m => mapRef.current.removeLayer(m));
+    markers.forEach(m => map.removeLayer(m));
     const newMarkers: any[] = [];
 
     const allReports = [
@@ -101,26 +210,39 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
     ];
 
     allReports.forEach(alert => {
-      const color = alert.severity === 'CRITICAL' ? '#ef4444' : alert.severity === 'HIGH' ? '#f97316' : '#3b82f6';
+      const isCritical = alert.severity === 'CRITICAL';
+      const isHigh = alert.severity === 'HIGH';
+      const color = isCritical ? '#ef4444' : isHigh ? '#f97316' : '#3b82f6';
+      
+      const iconSize = isCritical ? 60 : 40;
+      const pulseSize = isCritical ? 'w-16 h-16' : 'w-12 h-12';
+      const innerSize = isCritical ? 'w-8 h-8' : 'w-6 h-6';
+      
       const icon = (window as any).L.divIcon({
         className: 'tactical-marker',
         html: `
           <div class="relative flex items-center justify-center">
-            <div class="absolute inset-0 w-12 h-12 rounded-full animate-ping opacity-20" style="background-color: ${color}"></div>
-            <div class="relative w-6 h-6 rounded-full border-2 border-white flex items-center justify-center shadow-2xl" style="background-color: ${color}">
-               <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            <div class="absolute inset-0 ${pulseSize} rounded-full animate-ping opacity-30" style="background-color: ${color}"></div>
+            ${isCritical ? `<div class="absolute inset-0 w-20 h-20 rounded-full animate-pulse opacity-10" style="background-color: ${color}"></div>` : ''}
+            <div class="relative ${innerSize} rounded-full border-2 border-white flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.5)]" style="background-color: ${color}">
+               <div class="w-2 h-2 bg-white rounded-full ${isCritical ? 'animate-ping' : 'animate-pulse'}"></div>
             </div>
+            ${isCritical ? `
+              <div class="absolute -top-2 -right-2 bg-red-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-sm tracking-tighter shadow-xl">
+                CRITICAL
+              </div>
+            ` : ''}
           </div>
         `,
-        iconSize: [40, 40],
-        iconAnchor: [20, 20]
+        iconSize: [iconSize, iconSize],
+        iconAnchor: [iconSize / 2, iconSize / 2]
       });
 
-      const marker = (window as any).L.marker([alert.location.lat, alert.location.lng], { icon }).addTo(mapRef.current);
+      const marker = (window as any).L.marker([alert.location.lat, alert.location.lng], { icon }).addTo(map);
       marker.on('click', () => {
         setActiveAlert(alert);
         setActiveDriver(null);
-        mapRef.current.setView([alert.location.lat, alert.location.lng], 16);
+        map.setView([alert.location.lat, alert.location.lng], 16);
       });
       newMarkers.push(marker);
     });
@@ -130,9 +252,10 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
 
   // Render Driver Markers
   useEffect(() => {
-    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (!map) return;
 
-    driverMarkersRef.current.forEach(m => mapRef.current.removeLayer(m));
+    driverMarkersRef.current.forEach(m => map.removeLayer(m));
     const newMarkers: any[] = [];
 
     drivers.forEach(driver => {
@@ -155,17 +278,65 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
         iconAnchor: [20, 20]
       });
 
-      const marker = (window as any).L.marker([driver.location.lat, driver.location.lng], { icon }).addTo(mapRef.current);
+      const marker = (window as any).L.marker([driver.location.lat, driver.location.lng], { icon }).addTo(map);
       marker.on('click', () => {
         setActiveDriver(driver);
         setActiveAlert(null);
-        mapRef.current.setView([driver.location.lat, driver.location.lng], 15);
+        map.setView([driver.location.lat, driver.location.lng], 15);
       });
       newMarkers.push(marker);
     });
 
     driverMarkersRef.current = newMarkers;
   }, [drivers]);
+
+  // Handle Search
+  useEffect(() => {
+    if (searchQuery.length > 2) {
+      const fetchPlaces = async () => {
+        try {
+          // Add a location bias for Lagos, Nigeria
+          const data = await mapsService.getPlaces(searchQuery, '6.5244,3.3792', '50000');
+          if (data.predictions) {
+            setSearchResults(data.predictions);
+          }
+        } catch (error) {
+          console.error("Failed to fetch places:", error);
+        }
+      };
+      const timeoutId = setTimeout(fetchPlaces, 500);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery]);
+
+  const handlePlaceSelect = async (placeId: string, description: string) => {
+    setSearchQuery(description);
+    setSearchResults([]);
+    try {
+      // Geocode the selected place to get coordinates
+      const data = await mapsService.geocode(undefined, description);
+      if (data.results && data.results.length > 0) {
+        const location = data.results[0].geometry.location;
+        const map = mapRef.current;
+        if (map) {
+          map.setView([location.lat, location.lng], 15);
+          
+          // Optionally, dispatch a driver to this location
+          if (drivers.length > 0) {
+             const closestDriver = drivers[0]; // Simplified: just pick the first driver
+             setActiveDriver({
+               ...closestDriver,
+               destination: { lat: location.lat, lng: location.lng }
+             });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to geocode selected place:", error);
+    }
+  };
 
   const ScoreBar = ({ label, score, color = 'bg-blue-500' }: { label: string, score: number, color?: string }) => (
     <div className="space-y-1.5">
@@ -202,6 +373,58 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
 
       <div className="flex-1 relative">
         <div ref={mapContainerRef} className="w-full h-full grayscale-[0.8] contrast-[1.4] brightness-[0.8]" />
+        
+        {/* Tactical Yield HUD Overlay */}
+        <div className="absolute bottom-10 left-10 z-[1000] pointer-events-auto">
+           <div className={`bg-black/90 backdrop-blur-3xl border ${mockTelemetry.geminiQualityScore < 0.4 ? 'border-amber-500/50' : 'border-white/10'} p-8 rounded-[2.5rem] shadow-2xl space-y-6 min-w-[280px] transition-all duration-500`}>
+              <div className="flex justify-between items-center">
+                 <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-[#ff5f00] animate-pulse' : 'bg-green-500'}`}></div>
+                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">
+                       {isSyncing ? 'Syncing Pulse...' : 'Node Synchronized'}
+                    </span>
+                 </div>
+                 {mockTelemetry.isInGrayZone && (
+                    <div className="bg-purple-500/20 border border-purple-500/30 px-3 py-1 rounded-lg animate-pulse">
+                       <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest">2x Gray Zone</span>
+                    </div>
+                 )}
+              </div>
+
+              <div className="space-y-1">
+                 <div className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Session Yield</div>
+                 <div className="flex items-baseline gap-2">
+                    <div className="text-5xl font-black text-white italic tracking-tighter">
+                       {sessionTotal.toFixed(2)}
+                    </div>
+                    <span className="text-sm font-black text-[#ff5f00]">RGT</span>
+                 </div>
+              </div>
+
+              <div className="pt-6 border-t border-white/5 flex justify-between items-end">
+                 <div className="space-y-1">
+                    <div className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Current Rate</div>
+                    <div className={`text-xl font-black italic tracking-tighter ${mockTelemetry.isInGrayZone ? 'text-purple-400 drop-shadow-[0_0_8px_rgba(192,132,252,0.5)]' : 'text-white'}`}>
+                       +{currentRate.toFixed(4)}
+                    </div>
+                 </div>
+                 <div className="text-right space-y-1">
+                    <div className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Integrity</div>
+                    <div className={`text-xs font-black ${mockTelemetry.geminiQualityScore < 0.4 ? 'text-amber-500 animate-pulse' : 'text-green-500'}`}>
+                       {mockTelemetry.geminiQualityScore < 0.4 ? 'LOW FIDELITY' : 'OPTIMAL'}
+                    </div>
+                 </div>
+              </div>
+
+              {mockTelemetry.geminiQualityScore < 0.4 && (
+                 <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl">
+                    <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest text-center">
+                       Adjust Sensor – Obstructed Feed Detected
+                    </p>
+                 </div>
+              )}
+           </div>
+        </div>
       </div>
 
       {/* Intelligence Dashboard Panel */}
@@ -329,10 +552,11 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
                    <div className="pt-6 border-t border-white/5 flex justify-between items-center">
                       <div className="space-y-1">
                          <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Estimated Arrival</div>
-                         <div className="text-3xl font-black text-white italic tracking-tighter">{activeDriver.eta} <span className="text-sm text-zinc-500">MIN</span></div>
+                         <div className="text-3xl font-black text-white italic tracking-tighter">{activeRouteInfo ? activeRouteInfo.eta : `${activeDriver.eta} MIN`}</div>
                       </div>
-                      <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center border border-green-500/20">
-                         <ICONS.Activity className="w-6 h-6 text-green-500 animate-pulse" />
+                      <div className="space-y-1 text-right">
+                         <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Est. Fare</div>
+                         <div className="text-xl font-black text-green-500 italic tracking-tighter">{activeRouteInfo ? activeRouteInfo.fare : 'CALCULATING...'}</div>
                       </div>
                    </div>
                 </div>
@@ -345,10 +569,38 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
                 </button>
              </div>
            ) : (
-             <div className="h-[60vh] flex flex-col items-center justify-center text-center opacity-30">
-                <ICONS.Cpu className="w-32 h-32 text-zinc-800 mb-8 animate-pulse" />
-                <h4 className="text-3xl font-black italic uppercase tracking-tighter text-zinc-700">Awaiting Secure Uplink</h4>
-                <p className="text-xs font-bold uppercase tracking-widest text-zinc-800 mt-4 max-w-xs mx-auto leading-relaxed">Select a live node on the grid to initiate situational awareness audit and forensic decryption.</p>
+             <div className="h-[60vh] flex flex-col items-center justify-center text-center">
+                <div className="w-full max-w-md mb-12 relative">
+                  <div className="relative">
+                    <ICONS.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                    <input 
+                      type="text" 
+                      placeholder="SEARCH DESTINATION..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-zinc-900 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-[11px] font-black tracking-widest text-white uppercase focus:outline-none focus:border-orange-500 transition-colors"
+                    />
+                  </div>
+                  {searchResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-50">
+                      {searchResults.map((result, idx) => (
+                        <button 
+                          key={idx}
+                          onClick={() => handlePlaceSelect(result.place_id, result.description)}
+                          className="w-full text-left px-4 py-3 text-[10px] font-bold text-zinc-400 hover:bg-white/5 hover:text-white border-b border-white/5 last:border-0 transition-colors truncate"
+                        >
+                          {result.description}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="opacity-30 flex flex-col items-center">
+                  <ICONS.Cpu className="w-32 h-32 text-zinc-800 mb-8 animate-pulse" />
+                  <h4 className="text-3xl font-black italic uppercase tracking-tighter text-zinc-700">Awaiting Secure Uplink</h4>
+                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-800 mt-4 max-w-xs mx-auto leading-relaxed">Select a live node on the grid or search a destination to initiate situational awareness audit and forensic decryption.</p>
+                </div>
              </div>
            )}
         </div>

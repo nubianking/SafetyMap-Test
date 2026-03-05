@@ -39,6 +39,25 @@ Our mission is to democratize urban safety data. In many rapidly growing urban e
 5.  **Verification:** Other nodes or manual uploads provide cross-verification. The Forensic Audit portal ensures the evidence is authentic.
 6.  **Incentivization:** Once verified, the contributing nodes receive RGT tokens, and the grid's predictive accuracy improves.
 
+## 🏗️ System Architecture
+
+```text
+Mapper App ←Backend ←→ Google Maps APIs ←→ Driver App
+     ↓              ↓                ↓              ↓
+Live tracking   Route logic    Geocoding/       Navigation
+ETA display     Fare calc      Directions/      Driver location
+                Mapper match   Distance Matrix  updates
+```
+
+### Google Maps API Integration
+
+| API                     | Purpose                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| **Geocoding API**       | Converts GPS coordinates to street addresses; determines user location automatically |
+| **Places API**          | Finds nearby points of interest; enables smart location search for destinations      |
+| **Directions API**      | Provides turn-by-turn navigation for drivers; calculates optimal routes              |
+| **Distance Matrix API** | Calculates ETAs and real-time travel distances; powers dynamic fare calculations     |
+
 ## 🛠️ Tech Stack
 
 *   **Frontend Framework:** React 19, TypeScript, Vite
@@ -78,11 +97,53 @@ This project heavily utilizes the **Gemini API** for complex, multi-modal reason
    npm run dev
    ```
 
+## 📡 Incident Upload Configuration
+
+The Mapper App supports two primary upload modes for incident reporting: **Video** and **Audio**. Both modes share a core metadata layer but have specific constraints and AI pipelines.
+
+### 1️⃣ Video Incident Reporting
+
+*   **Format:** MP4 (H264 codec)
+*   **Duration:** 3s (min) to 20s (max)
+*   **Resolution:** 720p (preferred) / 1080p (max)
+*   **Max Size:** 50 MB
+*   **Endpoint:** `POST /api/v1/incidents/upload/video`
+*   **AI Pipeline:** Vision AI (Weapon detection, fire detection, crowd aggression, etc.)
+
+### 2️⃣ Audio Incident Reporting
+
+*   **Format:** WAV (PCM codec)
+*   **Duration:** 2s (min) to 15s (max)
+*   **Sample Rate:** 16000 Hz (Mono)
+*   **Max Size:** 10 MB
+*   **Endpoint:** `POST /api/v1/incidents/upload/audio`
+*   **AI Pipeline:** Audio AI (Gunshots, screams, explosions, etc.)
+
+### 3️⃣ Image Incident Reporting
+
+*   **Format:** JPEG / PNG
+*   **Max Images:** 3 per report
+*   **Max Size:** 10 MB per image
+*   **Resolution:** 1280x720 (recommended) / 1920x1080 (max)
+*   **Endpoint:** `POST /api/v1/incidents/upload/image`
+*   **AI Pipeline:** Vision Detection (Weapons, fire, vehicle collisions, damaged infrastructure, etc.)
+
+### 📦 Core Metadata
+
+Every upload attaches forensic metadata, including:
+*   `report_type` (video/audio/image)
+*   `incident_category`
+*   `node_id` & `device_id`
+*   `timestamp`
+*   `location` (lat/lng)
+*   Device signals (heading, speed, etc.)
+
 ## 🔒 Environment Variables
 
 The application requires the following environment variables to function properly:
 
 *   `GEMINI_API_KEY`: Your Google Gemini API key for running the forensic and predictive AI models.
+*   `GOOGLE_MAPS_API_KEY`: Your Google Maps Platform API key for geocoding, places, directions, and distance matrix.
 
 ## 📜 License
 
