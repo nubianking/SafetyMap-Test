@@ -477,23 +477,23 @@ async function startServer() {
   };
 
   // ============================================================================
-  // ERROR HANDLING & 404
-  // ============================================================================
-
-  app.use((req: Request, res: Response) => {
-    res.status(404).json(
-      createApiResponse(false, undefined, `Route not found: ${req.method} ${req.path}`)
-    );
-  });
-
-  app.use(errorHandler);
-
-  // ============================================================================
   // SERVER START
   // ============================================================================
 
   try {
     await setupViteMiddleware(app);
+
+    // ============================================================================
+    // ERROR HANDLING & 404 (must be after Vite/SPA middleware)
+    // ============================================================================
+
+    app.use((req: Request, res: Response) => {
+      res.status(404).json(
+        createApiResponse(false, undefined, `Route not found: ${req.method} ${req.path}`)
+      );
+    });
+
+    app.use(errorHandler);
 
     const server = app.listen(PORT, "0.0.0.0", () => {
       logger.info(`✓ Server running on http://0.0.0.0:${PORT}`);
