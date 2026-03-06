@@ -46,24 +46,37 @@ Mapper App ←Backend ←→ Google Maps APIs ←→ Driver App
      ↓              ↓                ↓              ↓
 Live tracking   Route logic    Geocoding/       Navigation
 ETA display     Fare calc      Directions/      Driver location
-                Mapper match   Distance Matrix  updates
+Heatmaps        Predictive     Distance Matrix  Traffic layers
+Analytics       Intelligence   Places API       Real-time updates
 ```
 
 ### Google Maps API Integration
 
 | API                     | Purpose                                                                              |
 | ----------------------- | ------------------------------------------------------------------------------------ |
+| **Maps JavaScript API** | Interactive maps with custom styling, markers, and overlays                          |
 | **Geocoding API**       | Converts GPS coordinates to street addresses; determines user location automatically |
 | **Places API**          | Finds nearby points of interest; enables smart location search for destinations      |
 | **Directions API**      | Provides turn-by-turn navigation for drivers; calculates optimal routes              |
 | **Distance Matrix API** | Calculates ETAs and real-time travel distances; powers dynamic fare calculations     |
+| **Traffic API**         | Real-time traffic data overlay for predictive routing                                |
+| **Visualization API**   | Heatmap layers for grid intelligence zones and risk visualization                    |
+
+## 🚀 Enhanced Grid Intelligence Features
+
+*   **Real-Time Traffic Integration:** Live traffic data overlay for accurate route planning
+*   **Heatmap Visualization:** Dynamic heatmaps showing high-risk zones and activity patterns
+*   **Predictive Analytics:** Real-time updates of predictive accuracy, active vectors, and yield metrics
+*   **Custom Map Styling:** Dark theme optimized for tactical operations
+*   **Interactive Markers:** Custom SVG markers for data points and driver locations
+*   **Route Visualization:** Animated polylines showing active routes and patrol patterns
 
 ## 🛠️ Tech Stack
 
 *   **Frontend Framework:** React 19, TypeScript, Vite
 *   **Styling:** Tailwind CSS (Custom high-tech/tactical UI design)
 *   **AI Integration:** `@google/genai` (Gemini 3 Flash Preview for multi-modal video/audio analysis)
-*   **Mapping:** Leaflet (`react-leaflet` / vanilla Leaflet integration)
+*   **Mapping:** Google Maps JavaScript API with custom styling, traffic layers, and heatmap visualization
 *   **Icons:** Lucide React
 
 ## 🧠 AI Integration

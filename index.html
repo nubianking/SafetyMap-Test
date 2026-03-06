@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Safety Map | High-Fidelity Street Intelligence</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Load Google Maps API with key from environment
+      const apiKey = import.meta.env?.VITE_GOOGLE_MAPS_API_KEY || 'YOUR_API_KEY';
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry,visualization`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    </script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
