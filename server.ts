@@ -1,4 +1,5 @@
-import express, { Request, Response, NextFunction, RequestHandler } from "express";
+import express from "express";
+import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { createServer as createViteServer } from "vite";
 import cors from "cors";
 import multer from "multer";
