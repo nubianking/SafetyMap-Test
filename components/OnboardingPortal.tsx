@@ -1,16 +1,15 @@
 
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAppContext } from '../contexts/AppContext';
 import { ICONS } from '../constants';
 import { GoogleGenAI, Type } from "@google/genai";
 
-interface OnboardingPortalProps {
-  onComplete: () => void;
-  onCancel: () => void;
-}
-
 type OnboardingStep = 'WELCOME' | 'PERSONAL' | 'IDENTITY' | 'LOCATION' | 'DEVICE' | 'TRAINING' | 'PAYMENT' | 'PROCESSING' | 'STATUS';
 
-const OnboardingPortal: React.FC<OnboardingPortalProps> = ({ onComplete, onCancel }) => {
+const OnboardingPortal: React.FC = () => {
+  const navigate = useNavigate();
+  const { currentUser } = useAppContext();
   const [step, setStep] = useState<OnboardingStep>('WELCOME');
   const [formData, setFormData] = useState({
     fullName: '',
@@ -26,8 +25,16 @@ const OnboardingPortal: React.FC<OnboardingPortalProps> = ({ onComplete, onCance
   const [selfieCaptured, setSelfieCaptured] = useState<string | null>(null);
   const [quizScore, setQuizScore] = useState(0);
   const [trustScore, setTrustScore] = useState(50);
+  const [assignedPasskey, setAssignedPasskey] = useState<string | null>(null);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  React.useEffect(() => {
+    if (currentUser) {
+      navigate('/operations');
+    }
+  }, [currentUser, navigate]);
 
   const handleNext = () => {
     const steps: OnboardingStep[] = ['WELCOME', 'PERSONAL', 'IDENTITY', 'LOCATION', 'DEVICE', 'TRAINING', 'PAYMENT', 'PROCESSING', 'STATUS'];
@@ -41,6 +48,37 @@ const OnboardingPortal: React.FC<OnboardingPortalProps> = ({ onComplete, onCance
   };
 
   const simulateAIProcessing = async () => {
+    // register the mapper profile with backend
+    try {
+      const payload = {
+        alias: formData.email, // use email as alias
+        fullName: formData.fullName,
+        dob: formData.dob,
+        phone: formData.phone,
+        email: formData.email,
+        nationality: formData.nationality,
+        mobility: formData.mobility,
+        zone: formData.zone,
+        bankName: formData.bankName,
+        accountNumber: formData.accountNumber
+      };
+      const resp = await fetch('/api/mappers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await resp.json();
+      if (resp.ok && result.success) {
+        setAssignedPasskey(result.data.passkey);
+      } else {
+        console.error('Registration failed', result.error);
+        setRegistrationError(result.error || 'Registration failed');
+      }
+    } catch (err) {
+      console.error('Mapper registration error', err);
+      setRegistrationError('Network error during registration');
+    }
+
     // Artificial delay to show AI at work
     setTimeout(() => {
       setTrustScore(prev => prev + 15); // Bonus for completing training
@@ -86,7 +124,7 @@ const OnboardingPortal: React.FC<OnboardingPortalProps> = ({ onComplete, onCance
             </div>
             <div className="pt-8 flex flex-col gap-4">
               <button onClick={handleNext} className="w-full py-6 bg-white text-black font-black text-[12px] tracking-widest uppercase rounded-2xl shadow-2xl hover:bg-orange-600 hover:text-white transition-all">Start Activation</button>
-              <button onClick={onCancel} className="w-full py-4 text-zinc-500 font-black text-[10px] tracking-widest uppercase hover:text-white transition-all">Cancel</button>
+              <button onClick={() => navigate('/')} className="w-full py-4 text-zinc-500 font-black text-[10px] tracking-widest uppercase hover:text-white transition-all">Cancel</button>
             </div>
           </div>
         );
@@ -296,6 +334,10 @@ const OnboardingPortal: React.FC<OnboardingPortalProps> = ({ onComplete, onCance
              </div>
              <div className="space-y-4">
                 <h2 className="text-4xl font-black italic uppercase tracking-tighter">Node <span className="text-green-500">Active</span></h2>
+                <p className="text-sm text-zinc-400 uppercase tracking-widest">Alias: {formData.email}</p>
+                {registrationError && (
+                  <div className="text-red-400 text-xs font-bold">{registrationError}</div>
+                )}
                 <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl inline-block px-12">
                    <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Initial Trust Score</div>
                    <div className="text-4xl font-black text-white">{trustScore}/100</div>
@@ -308,7 +350,13 @@ const OnboardingPortal: React.FC<OnboardingPortalProps> = ({ onComplete, onCance
              <div className="bg-orange-600/10 p-6 rounded-3xl border border-orange-500/20 max-w-sm mx-auto">
                 <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">Your account is approved. Complete your first 5 verified reports to unlock the <span className="text-white font-black">"Persistence Bonus"</span> multiplier.</p>
              </div>
-             <button onClick={onComplete} className="w-full py-6 bg-white text-black font-black text-[12px] tracking-widest uppercase rounded-2xl shadow-2xl hover:bg-orange-600 hover:text-white transition-all">Go to Command Deck</button>
+             {assignedPasskey && (
+               <div className="bg-black/80 text-white text-[10px] p-4 rounded-xl">
+                 Your node passkey: <strong className="font-mono">{assignedPasskey}</strong><br/>
+                 Use this value when logging in (you can also use your email).
+               </div>
+             )}
+             <button onClick={() => navigate('/driver')} className="w-full py-6 bg-white text-black font-black text-[12px] tracking-widest uppercase rounded-2xl shadow-2xl hover:bg-orange-600 hover:text-white transition-all">Go to Command Deck</button>
           </div>
         );
     }

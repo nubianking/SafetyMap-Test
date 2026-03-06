@@ -1,14 +1,19 @@
 
 import React, { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../constants';
 
-interface LiveGridSectionProps {
-  onExpand?: () => void;
-  onUpload?: () => void;
-}
-
-const LiveGridSection: React.FC<LiveGridSectionProps> = ({ onExpand, onUpload }) => {
+const LiveGridSection: React.FC = () => {
+  const navigate = useNavigate();
   const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleExpand = () => {
+    navigate('/map');
+  };
+
+  const handleUpload = () => {
+    navigate('/upload');
+  };
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -90,7 +95,7 @@ const LiveGridSection: React.FC<LiveGridSectionProps> = ({ onExpand, onUpload })
               <div ref={mapContainerRef} className="w-full h-full grayscale-[0.8] contrast-[1.2] transition-transform duration-700 ease-in-out group-hover/map:scale-105" />
               
               <button 
-                onClick={onExpand}
+                onClick={handleExpand}
                 className="absolute top-10 left-10 z-[500] bg-white text-black p-5 rounded-3xl transition-all transform hover:scale-110 opacity-0 group-hover/map:opacity-100 shadow-2xl"
               >
                 <ICONS.LayoutGrid className="w-6 h-6" />
@@ -147,7 +152,7 @@ const LiveGridSection: React.FC<LiveGridSectionProps> = ({ onExpand, onUpload })
                 </div>
               </div>
               
-              <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/5 hover:bg-white/10 cursor-pointer transition-all flex items-center gap-8" onClick={onExpand}>
+              <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/5 hover:bg-white/10 cursor-pointer transition-all flex items-center gap-8" onClick={handleExpand}>
                 <div className="w-16 h-16 bg-blue-500/10 rounded-3xl flex items-center justify-center border border-blue-500/20 shrink-0">
                   <ICONS.MapPin className="w-7 h-7 text-blue-500" />
                 </div>

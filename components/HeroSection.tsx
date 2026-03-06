@@ -1,13 +1,19 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../constants';
 
-interface HeroSectionProps {
-  onExploreMap?: () => void;
-  onLogin?: () => void;
-}
+const HeroSection: React.FC = () => {
+  const navigate = useNavigate();
 
-const HeroSection: React.FC<HeroSectionProps> = ({ onExploreMap, onLogin }) => {
+  const handleExploreMap = () => {
+    navigate('/map');
+  };
+
+  const handleLogin = () => {
+    navigate('/login');
+  };
+
   return (
     <section className="relative pt-64 pb-40 px-6 md:px-12 bg-black overflow-hidden">
       {/* Background Ambience */}
@@ -31,13 +37,13 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onExploreMap, onLogin }) => {
           
           <div className="flex flex-col sm:flex-row gap-6 w-full max-w-md animate-in fade-in slide-in-from-bottom duration-1000">
             <button 
-              onClick={onLogin}
+              onClick={handleLogin}
               className="flex-1 bg-[#ff5f00] text-white font-black text-[12px] tracking-[0.2em] py-7 rounded-3xl uppercase btn-hover-effect"
             >
               Launch Session
             </button>
             <button 
-              onClick={onExploreMap}
+              onClick={handleExploreMap}
               className="flex-1 bg-white text-black font-black text-[12px] tracking-[0.2em] py-7 rounded-3xl uppercase btn-hover-effect"
             >
               View Grid

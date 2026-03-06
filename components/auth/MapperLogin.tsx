@@ -1,43 +1,43 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAppContext } from '../../contexts/AppContext';
 import { ICONS } from '../../constants';
 import { UserProfileData } from '../profile/MapperProfile';
 
-interface MapperLoginProps {
-  onLoginSuccess: (user: UserProfileData) => void;
-  onBack: () => void;
-}
-
-const MapperLogin: React.FC<MapperLoginProps> = ({ onLoginSuccess, onBack }) => {
+const MapperLogin: React.FC = () => {
+  const navigate = useNavigate();
+  const { setCurrentUser } = useAppContext();
   const [nodeId, setNodeId] = useState('');
   const [passkey, setPasskey] = useState('');
+  const { currentUser } = useAppContext();
+
+  // redirect if already logged in
+  React.useEffect(() => {
+    if (currentUser) {
+      navigate('/operations');
+    }
+  }, [currentUser, navigate]);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsAuthenticating(true);
-    
-    // Simulate authentication delay
-    setTimeout(() => {
-      setIsAuthenticating(false);
-      if (nodeId.trim().toLowerCase() === 'oba' && passkey === 'Test') {
-        onLoginSuccess({
-          alias: 'Oba',
-          rank: 'Apex Elite',
-          score: 98,
-          balance: 45200.50,
-          history: [
-            { date: 'MAR 03, 2026', qualityScore: 99, incidents: 3, yield: 120.50, status: 'PAID' },
-            { date: 'MAR 02, 2026', qualityScore: 95, incidents: 1, yield: 45.20, status: 'PAID' },
-            { date: 'MAR 01, 2026', qualityScore: 98, incidents: 0, yield: 15.00, status: 'PAID' },
-            { date: 'FEB 28, 2026', qualityScore: 99, incidents: 2, yield: 85.00, status: 'PAID' },
-          ]
-        });
+
+    try {
+      const success = await login(nodeId.trim(), passkey);
+      if (success) {
+        navigate('/operations');
       } else {
-        setError('Invalid Node ID or Passkey. Access Denied.');
+        setError('Invalid email/alias or passkey');
       }
-    }, 1500);
+    } catch (err) {
+      console.error('Login request failed', err);
+      setError('Network error. Please try again.');
+    } finally {
+      setIsAuthenticating(false);
+    }
   };
 
   return (
@@ -50,7 +50,7 @@ const MapperLogin: React.FC<MapperLoginProps> = ({ onLoginSuccess, onBack }) => 
 
       {/* Top Navigation Bar */}
       <div className="absolute top-0 left-0 w-full p-8 flex justify-between items-center z-50">
-        <div className="flex items-center gap-4 cursor-pointer group" onClick={onBack}>
+        <div className="flex items-center gap-4 cursor-pointer group" onClick={() => navigate('/')}>
           <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center transition-all group-hover:bg-white group-hover:scale-105">
             <ICONS.Shield className="w-5 h-5 text-white group-hover:text-black transition-colors" />
           </div>
@@ -83,7 +83,7 @@ const MapperLogin: React.FC<MapperLoginProps> = ({ onLoginSuccess, onBack }) => 
               )}
               
               <div>
-                <label className="block text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 ml-2">Node ID / Mapper Alias</label>
+                <label className="block text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 ml-2">Email or Node Alias</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <ICONS.User className="w-5 h-5 text-zinc-600" />
@@ -137,7 +137,7 @@ const MapperLogin: React.FC<MapperLoginProps> = ({ onLoginSuccess, onBack }) => 
 
             <div className="pt-6 border-t border-white/5 text-center">
               <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-                New to the grid? <button type="button" className="text-white hover:text-[#ff5f00] transition-colors ml-1">Request Node Access</button>
+                New to the grid? <button type="button" onClick={() => navigate('/onboarding')} className="text-white hover:text-[#ff5f00] transition-colors ml-1">Request Node Access</button>
               </p>
             </div>
           </form>

@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAppContext } from '../contexts/AppContext';
 import { Shield, Zap, Map as MapIcon, User, AlertTriangle, Camera, Video, Mic, Activity } from 'lucide-react';
 import { UserProfileData } from './profile/MapperProfile';
 import { IncidentUploadModal } from './mapper/IncidentUploadModal';
@@ -6,11 +8,11 @@ import { LiveAlert } from '../types';
 
 interface OperationsPortalProps {
   user: UserProfileData | null;
-  onNavigate: (view: 'MAP' | 'DRIVER' | 'UPLOAD' | 'PROFILE') => void;
-  onReportAlert: (alert: LiveAlert) => void;
 }
 
-const OperationsPortal: React.FC<OperationsPortalProps> = ({ user, onNavigate, onReportAlert }) => {
+const OperationsPortal: React.FC<OperationsPortalProps> = ({ user }) => {
+  const navigate = useNavigate();
+  const { handleNewAlert, logout } = useAppContext();
   const [uploadModalType, setUploadModalType] = useState<'video' | 'audio' | 'image' | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
 
@@ -56,6 +58,7 @@ const OperationsPortal: React.FC<OperationsPortalProps> = ({ user, onNavigate, o
             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Node Identity</p>
             <p className="text-xl font-black text-white uppercase">{user?.alias || 'UNKNOWN_NODE'}</p>
             <p className="text-sm font-bold text-blue-500 uppercase">{user?.rank || 'Rookie'}</p>
+            <button onClick={() => { logout(); navigate('/login'); }} className="mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:underline">Logout</button>
           </div>
         </div>
 
@@ -68,7 +71,7 @@ const OperationsPortal: React.FC<OperationsPortalProps> = ({ user, onNavigate, o
             <div className="grid sm:grid-cols-2 gap-6">
               {/* Launch Sentry */}
               <button 
-                onClick={() => onNavigate('DRIVER')}
+                onClick={() => navigate('/driver')}
                 className="group relative bg-zinc-900/50 border border-white/10 p-8 rounded-[2.5rem] hover:bg-blue-900/20 hover:border-blue-500/50 transition-all text-left overflow-hidden"
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all"></div>
@@ -81,7 +84,7 @@ const OperationsPortal: React.FC<OperationsPortalProps> = ({ user, onNavigate, o
 
               {/* Live Map */}
               <button 
-                onClick={() => onNavigate('MAP')}
+                onClick={() => navigate('/map')}
                 className="group relative bg-zinc-900/50 border border-white/10 p-8 rounded-[2.5rem] hover:bg-orange-900/20 hover:border-orange-500/50 transition-all text-left overflow-hidden"
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl group-hover:bg-orange-500/20 transition-all"></div>
@@ -153,7 +156,7 @@ const OperationsPortal: React.FC<OperationsPortalProps> = ({ user, onNavigate, o
               </div>
 
               <button 
-                onClick={() => onNavigate('PROFILE')}
+                onClick={() => navigate('/profile')}
                 className="w-full bg-white text-black hover:bg-zinc-200 p-4 rounded-2xl flex items-center justify-center gap-3 transition-colors active:scale-95 mt-4"
               >
                 <User className="w-5 h-5" />
@@ -191,7 +194,7 @@ const OperationsPortal: React.FC<OperationsPortalProps> = ({ user, onNavigate, o
           onSubmit={(metadata) => {
             console.log("Uploaded incident metadata:", metadata);
             if (metadata.analysis) {
-              onReportAlert({
+              handleNewAlert({
                 id: `MANUAL-${Date.now()}`,
                 label: metadata.analysis.type?.toUpperCase() || metadata.analysis.sound_type?.toUpperCase() || 'MANUAL REPORT',
                 severity: 'HIGH',

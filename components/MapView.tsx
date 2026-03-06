@@ -1,5 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MOCK_INCIDENTS, ICONS, HAZARD_TYPES } from '../constants';
 import { LiveAlert } from '../types';
 import { useSentryRewards } from '../hooks/useSentryRewards';
@@ -7,7 +8,6 @@ import { SentryTelemetry } from '../types/rewards';
 import { mapsService } from '../services/mapsService';
 
 interface MapViewProps {
-  onBack?: () => void;
   liveAlerts?: LiveAlert[];
 }
 
@@ -27,7 +27,8 @@ const INITIAL_DRIVERS: Driver[] = [
   { id: 'NODE-D4', name: 'Delta Unit', location: { lat: 6.5200, lng: 3.3850 }, destination: { lat: 6.5000, lng: 3.3500 }, eta: 22, status: 'MAPPING' },
 ];
 
-const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
+const MapView: React.FC<MapViewProps> = ({ liveAlerts = [] }) => {
+  const navigate = useNavigate();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [activeAlert, setActiveAlert] = useState<any>(null);
@@ -355,7 +356,7 @@ const MapView: React.FC<MapViewProps> = ({ onBack, liveAlerts = [] }) => {
       {/* Tactical HUD Header */}
       <div className="absolute top-0 left-0 right-0 z-[1000] p-10 pointer-events-none flex justify-between">
          <div className="flex items-center gap-6 pointer-events-auto">
-            <button onClick={onBack} className="w-16 h-16 bg-black/80 backdrop-blur-3xl border border-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-all shadow-2xl">
+            <button onClick={() => navigate('/')} className="w-16 h-16 bg-black/80 backdrop-blur-3xl border border-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-all shadow-2xl">
               <ICONS.LayoutGrid className="w-6 h-6 text-zinc-400" />
             </button>
             <div className="bg-black/90 border border-white/5 px-10 py-5 rounded-full flex items-center gap-10 shadow-2xl backdrop-blur-3xl">

@@ -1,21 +1,31 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../constants';
 
-interface HeaderProps {
-  onExploreMap?: () => void;
-  onVisualProof?: () => void;
-  onProfile?: () => void;
-  onHome?: () => void;
-}
+const Header: React.FC = () => {
+  const navigate = useNavigate();
 
-const Header: React.FC<HeaderProps> = ({ onExploreMap, onVisualProof, onProfile, onHome }) => {
+  const handleHome = () => {
+    navigate('/');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleExploreMap = () => {
+    navigate('/login'); // Assuming login for map access
+  };
+
+  const handleVisualProof = () => {
+    navigate('/upload');
+  };
+
+  const handleProfile = () => {
+    navigate('/login'); // Will redirect to operations if logged in
+  };
+
   return (
     <header className="fixed top-8 left-1/2 -translate-x-1/2 w-[92%] max-w-6xl h-20 glass-pill rounded-[2.5rem] z-[1000] px-10 flex items-center justify-between shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)]">
-      <div className="flex items-center gap-4 cursor-pointer group" onClick={() => {
-        if (onHome) onHome();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }}>
+      <div className="flex items-center gap-4 cursor-pointer group" onClick={handleHome}>
         <div className="w-11 h-11 bg-white rounded-2xl flex items-center justify-center transition-all group-hover:bg-[#ff5f00] group-hover:scale-105 group-hover:rotate-6">
           <ICONS.Shield className="w-6 h-6 text-black group-hover:text-white transition-colors" />
         </div>
@@ -28,7 +38,7 @@ const Header: React.FC<HeaderProps> = ({ onExploreMap, onVisualProof, onProfile,
       </div>
 
       <nav className="hidden md:flex items-center gap-12">
-        <button onClick={onVisualProof} className="text-[10px] font-black text-zinc-400 hover:text-white uppercase tracking-[0.2em] transition-all relative group">
+        <button onClick={handleVisualProof} className="text-[10px] font-black text-zinc-400 hover:text-white uppercase tracking-[0.2em] transition-all relative group">
           Visual Proof
           <span className="absolute -bottom-1 left-0 w-0 h-[1px] bg-[#ff5f00] transition-all group-hover:w-full"></span>
         </button>
@@ -36,15 +46,15 @@ const Header: React.FC<HeaderProps> = ({ onExploreMap, onVisualProof, onProfile,
           The Protocol
           <span className="absolute -bottom-1 left-0 w-0 h-[1px] bg-[#ff5f00] transition-all group-hover:w-full"></span>
         </a>
-        <button onClick={onProfile} className="text-[10px] font-black text-zinc-400 hover:text-white uppercase tracking-[0.2em] transition-all relative group">
+        <button onClick={handleProfile} className="text-[10px] font-black text-zinc-400 hover:text-white uppercase tracking-[0.2em] transition-all relative group">
           Node Profile
           <span className="absolute -bottom-1 left-0 w-0 h-[1px] bg-[#ff5f00] transition-all group-hover:w-full"></span>
         </button>
       </nav>
 
       <div className="flex items-center gap-4">
-        <button 
-          onClick={onExploreMap}
+        <button
+          onClick={handleExploreMap}
           className="bg-white text-black text-[11px] font-black tracking-widest px-8 py-3.5 rounded-2xl uppercase btn-hover-effect"
         >
           Initialize Node

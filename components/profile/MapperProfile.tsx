@@ -18,8 +18,17 @@ export interface UserProfileData {
   score: number;
   balance: number;
   history: SessionRecord[];
+  // additional onboarding fields may be present
+  fullName?: string;
+  dob?: string;
+  phone?: string;
+  email?: string;
+  nationality?: string;
+  mobility?: string;
+  zone?: string;
+  bankName?: string;
+  accountNumber?: string;
 }
-
 const MOCK_HISTORY: SessionRecord[] = [
   { date: 'FEB 20, 2026', qualityScore: 98, incidents: 2, yield: 45.20, status: 'PAID' },
   { date: 'FEB 19, 2026', qualityScore: 82, incidents: 0, yield: 12.10, status: 'PAID' },
@@ -29,10 +38,10 @@ const MOCK_HISTORY: SessionRecord[] = [
 
 interface MapperProfileProps {
   user?: UserProfileData | null;
-  onBack: () => void;
 }
 
-const MapperProfile: React.FC<MapperProfileProps> = ({ user, onBack }) => {
+const MapperProfile: React.FC<MapperProfileProps> = ({ user }) => {
+  const navigate = useNavigate();
   const profileData = user || {
     alias: 'GUEST_NODE',
     rank: 'Oracle Elite',
@@ -59,7 +68,7 @@ const MapperProfile: React.FC<MapperProfileProps> = ({ user, onBack }) => {
             </h2>
           </div>
           <button 
-            onClick={onBack}
+            onClick={() => navigate('/')}
             className="w-14 h-14 bg-zinc-900 border border-white/10 rounded-full flex items-center justify-center hover:bg-white hover:text-black transition-all active:scale-95"
           >
             <ICONS.Plus className="w-6 h-6 rotate-45" />
@@ -70,6 +79,15 @@ const MapperProfile: React.FC<MapperProfileProps> = ({ user, onBack }) => {
           {/* Left Column: Trust Card & Stats */}
           <div className="lg:col-span-1 space-y-8">
             <TrustCard rank={profileData.rank} score={profileData.score} balance={profileData.balance} />
+
+            {/* Personal details from onboarding */}
+            {(profileData.fullName || profileData.email || profileData.phone) && (
+              <div className="bg-zinc-900/20 border border-white/5 rounded-2xl p-4 space-y-2">
+                {profileData.fullName && <p className="text-[10px]"><strong>Name:</strong> {profileData.fullName}</p>}
+                {profileData.email && <p className="text-[10px]"><strong>Email:</strong> {profileData.email}</p>}
+                {profileData.phone && <p className="text-[10px]"><strong>Phone:</strong> {profileData.phone}</p>}
+              </div>
+            )}
             
             {/* Action Buttons */}
             <div className="grid grid-cols-2 gap-4">

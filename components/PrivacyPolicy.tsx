@@ -1,11 +1,10 @@
 import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield } from 'lucide-react';
 
-interface PrivacyPolicyProps {
-  onBack: () => void;
-}
+const PrivacyPolicy: React.FC = () => {
+  const navigate = useNavigate();
 
-const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -15,7 +14,7 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
       {/* Navigation Bar */}
       <div className="sticky top-0 z-50 bg-[#fcfcfc]/90 backdrop-blur-md border-b border-zinc-200 px-6 py-4 flex justify-between items-center font-sans">
         <button 
-          onClick={onBack}
+          onClick={() => navigate('/')}
           className="flex items-center gap-2 text-zinc-600 hover:text-black transition-colors font-bold text-sm uppercase tracking-widest"
         >
           <ArrowLeft className="w-4 h-4" />

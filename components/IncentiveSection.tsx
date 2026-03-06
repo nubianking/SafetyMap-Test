@@ -1,12 +1,15 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../constants';
 
-interface IncentiveSectionProps {
-  onOnboard?: () => void;
-}
+const IncentiveSection: React.FC = () => {
+  const navigate = useNavigate();
 
-const IncentiveSection: React.FC<IncentiveSectionProps> = ({ onOnboard }) => {
+  const handleOnboard = () => {
+    navigate('/onboarding');
+  };
+
   return (
     <section id="incentives" className="py-48 px-6 md:px-12 bg-black">
       <div className="max-w-7xl mx-auto">
@@ -74,7 +77,7 @@ const IncentiveSection: React.FC<IncentiveSectionProps> = ({ onOnboard }) => {
                      <span className="text-7xl font-black text-white tracking-tighter italic">₦307K</span>
                   </div>
                   <button 
-                    onClick={onOnboard} 
+                    onClick={handleOnboard} 
                     className="bg-[#ff5f00] text-white font-black text-[12px] tracking-[0.3em] px-12 py-7 rounded-3xl uppercase btn-hover-effect"
                   >
                     Activate Node

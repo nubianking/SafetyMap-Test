@@ -138,7 +138,17 @@ Every upload attaches forensic metadata, including:
 *   `location` (lat/lng)
 *   Device signals (heading, speed, etc.)
 
-## 🔒 Environment Variables
+## � Backend Mapper API
+
+To support multiple mapper profiles and onboarding, the server exposes the following new endpoints:
+
+* `GET /api/mappers` – list all registered mappers (returns profiles without passkeys).
+* `POST /api/mappers` – create a new mapper profile during onboarding. Payload must include `alias`, `fullName`, `dob`, `phone`, `email`, `nationality`, `mobility`, `zone`, `bankName`, and `accountNumber`.  Returns the new profile and the generated passkey you should store.
+* `POST /api/mappers/login` – authenticate using `{ alias, passkey }` (alias may be email).  Returns the full profile on success.
+
+These endpoints currently store data in memory; replace with a persistent database in production.
+
+## �🔒 Environment Variables
 
 The application requires the following environment variables to function properly:
 

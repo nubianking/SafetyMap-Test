@@ -1,15 +1,14 @@
 
 import React, { useState, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAppContext } from '../contexts/AppContext';
 import { ICONS } from '../constants';
 import { GoogleGenAI, Type } from "@google/genai";
 import { LiveAlert, VerificationScore } from '../types';
 
-interface AnonymousUploadPortalProps {
-  onReportAlert?: (alert: LiveAlert) => void;
-  onBack: () => void;
-}
-
-const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportAlert, onBack }) => {
+const AnonymousUploadPortal: React.FC = () => {
+  const navigate = useNavigate();
+  const { handleNewAlert } = useAppContext();
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [results, setResults] = useState<any>(null);
@@ -139,8 +138,8 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
       setUploadProgress(100);
 
       // Map to global alert state if verified
-      if (onReportAlert && result.verification_recommendation.status !== 'SUSPICIOUS') {
-        onReportAlert({
+      if (handleNewAlert && result.verification_recommendation.status !== 'SUSPICIOUS') {
+        handleNewAlert({
           id: `UPL-${Date.now()}`,
           label: result.threat_detection.visible_threats[0]?.toUpperCase() || 'VIDEO EVIDENCE',
           severity: result.severity.level as any,
@@ -260,7 +259,7 @@ const AnonymousUploadPortal: React.FC<AnonymousUploadPortalProps> = ({ onReportA
              >
                {isProcessing ? 'Executing 6-Task Audit...' : 'Start Intelligence Verification'}
              </button>
-             <button onClick={onBack} className="px-12 py-7 bg-zinc-900 text-zinc-500 font-black text-[11px] tracking-widest uppercase rounded-[2rem] border border-white/5 hover:text-white transition-all">Cancel</button>
+             <button onClick={() => navigate('/')} className="px-12 py-7 bg-zinc-900 text-zinc-500 font-black text-[11px] tracking-widest uppercase rounded-[2rem] border border-white/5 hover:text-white transition-all">Cancel</button>
           </div>
         </div>
 

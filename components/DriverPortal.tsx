@@ -1,5 +1,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAppContext } from '../contexts/AppContext';
 import { ICONS } from '../constants';
 import { GoogleGenAI, Type } from "@google/genai";
 import { LiveAlert, ForensicMetadata, TechnicalTelemetry, VerificationScore, AudioEvent } from '../types';
@@ -14,12 +16,12 @@ import { IncidentUploadModal } from './mapper/IncidentUploadModal';
 import { User } from 'lucide-react';
 
 interface DriverPortalProps {
-  onReportAlert?: (alert: LiveAlert) => void;
   user?: UserProfileData | null;
-  onOpenProfile?: () => void;
 }
 
-const DriverPortal: React.FC<DriverPortalProps> = ({ onReportAlert, user, onOpenProfile }) => {
+const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
+  const navigate = useNavigate();
+  const { handleNewAlert } = useAppContext();
   const [isStreaming, setIsStreaming] = useState(false);
   const [tokens, setTokens] = useState(1250);
   const [trustRank, setTrustRank] = useState<'Watcher' | 'Sentinel' | 'Oracle' | 'Apex'>('Oracle');
@@ -231,8 +233,8 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ onReportAlert, user, onOpen
       };
       setCurrentTelemetry(newTelemetry);
 
-      if (onReportAlert && currentLocation && (result.detected_hazards.length > 0 || result.anomalies.length > 0 || result.severity === 'CRITICAL')) {
-        onReportAlert({
+      if (handleNewAlert && currentLocation && (result.detected_hazards.length > 0 || result.anomalies.length > 0 || result.severity === 'CRITICAL')) {
+        handleNewAlert({
           id: `BEH-${Date.now()}`,
           label: result.anomalies[0]?.type?.toUpperCase() || result.detected_hazards[0]?.toUpperCase() || 'BEHAVIORAL ANOMALY',
           severity: result.severity as any,
@@ -281,7 +283,7 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ onReportAlert, user, onOpen
       setIsAnalyzing(false);
       setNodeStatus('ACTIVE');
     }
-  }, [isStreaming, currentLocation, isAnalyzing, deviceFingerprint, onReportAlert]);
+  }, [isStreaming, currentLocation, isAnalyzing, deviceFingerprint, handleNewAlert]);
 
   useEffect(() => {
     const interval = setInterval(analyzeSegment, 15000); 
@@ -305,8 +307,8 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ onReportAlert, user, onOpen
 
   const handleQuickReport = (type: string) => {
     if (!currentLocation) return;
-    if (onReportAlert) {
-      onReportAlert({
+    if (handleNewAlert) {
+      handleNewAlert({
         id: `QR-${Date.now()}`,
         label: type.toUpperCase(),
         severity: 'HIGH',
@@ -377,9 +379,9 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ onReportAlert, user, onOpen
                2 Alerts Nearby
             </div>
             <div className="flex gap-2 pointer-events-auto">
-              {onOpenProfile && (
+              {user && (
                 <button 
-                  onClick={onOpenProfile}
+                  onClick={() => navigate('/operations')}
                   className="bg-black/80 backdrop-blur w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-zinc-800 transition-colors shadow-xl"
                 >
                   <User className="w-4 h-4 text-zinc-400" />
