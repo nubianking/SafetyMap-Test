@@ -3,6 +3,8 @@ import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { createServer as createViteServer } from "vite";
 import cors from "cors";
 import multer from "multer";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -465,7 +467,12 @@ async function startServer() {
       }
     } else {
       logger.info('Serving static production files');
+      const __dirname = path.dirname(fileURLToPath(import.meta.url));
       app.use(express.static("dist"));
+      // SPA fallback: serve index.html for unmatched routes
+      app.get("*", (req: Request, res: Response) => {
+        res.sendFile(path.resolve(__dirname, "dist/index.html"));
+      });
     }
   };
 
