@@ -129,7 +129,7 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
 
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.0-flash',
         contents: [{
           parts: [
             { inlineData: { mimeType: 'video/webm', data: segmentData } },
@@ -143,16 +143,7 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
             }
           ]
         }],
-        config: { 
-          systemInstruction: `You are a Predictive Tactical Forensic AI. You analyze behavioral patterns in urban mobility feeds.
-          
-          OUTPUT PROTOCOL:
-          - Detect hazards and unique ANOMALIES.
-          - Track TEMPORAL TRENDS.
-          - PREDICTIVE RISK: Probability of escalation and projected outcome.
-          - RISK VECTORS: Directional or thematic risk components.
-          - SEVERITY: LOW, MEDIUM, HIGH, CRITICAL.
-          - Return ONLY structured JSON.`,
+        generationConfig: {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -208,7 +199,16 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
             },
             required: ["detected_hazards", "anomalies", "acoustic_events", "temporal_trend", "predictive_risk", "risk_vectors", "crowd_panic", "severity", "emergency_recommendation", "justification", "confidence", "forensics"]
           }
-        }
+        },
+        systemInstruction: `You are a Predictive Tactical Forensic AI. You analyze behavioral patterns in urban mobility feeds.
+        
+        OUTPUT PROTOCOL:
+        - Detect hazards and unique ANOMALIES.
+        - Track TEMPORAL TRENDS.
+        - PREDICTIVE RISK: Probability of escalation and projected outcome.
+        - RISK VECTORS: Directional or thematic risk components.
+        - SEVERITY: LOW, MEDIUM, HIGH, CRITICAL.
+        - Return ONLY structured JSON.`
       });
 
       const result = JSON.parse(response.text || '{}');
