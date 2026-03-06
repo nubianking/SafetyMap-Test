@@ -142,7 +142,7 @@ const LiveGridSection: React.FC = () => {
             </div>
 
             <div className="grid gap-6">
-              <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/5 hover:bg-white/10 cursor-pointer transition-all flex items-center gap-8" onClick={onUpload}>
+              <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/5 hover:bg-white/10 cursor-pointer transition-all flex items-center gap-8" onClick={handleUpload}>
                 <div className="w-16 h-16 bg-purple-500/10 rounded-3xl flex items-center justify-center border border-purple-500/20 shrink-0">
                   <ICONS.Cpu className="w-7 h-7 text-purple-500" />
                 </div>
