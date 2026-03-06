@@ -1,6 +1,6 @@
 
-import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense, lazy, ErrorInfo, ReactNode } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
 import FeaturesSection from './components/FeaturesSection';
@@ -20,6 +20,57 @@ const OperationsPortal = lazy(() => import('./components/OperationsPortal'));
 const Whitepaper = lazy(() => import('./components/Whitepaper'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
 const LegalNotice = lazy(() => import('./components/LegalNotice'));
+
+// Error Boundary component
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends React.Component<{ children: ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('App Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-black">
+          <div className="text-center text-white">
+            <h1 className="text-3xl font-bold text-red-500 mb-4">Something went wrong</h1>
+            <p className="text-gray-400 mb-4">{this.state.error?.message}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+            >
+              Reload page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// Loading Spinner component
+const LoadingSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center bg-[#050505]">
+    <div className="text-center">
+      <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+      <p className="text-gray-400">Loading...</p>
+    </div>
+  </div>
+);
 
 // Layout component for pages with header and footer
 const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
