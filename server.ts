@@ -470,7 +470,7 @@ async function startServer() {
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
       app.use(express.static("dist"));
       // SPA fallback: serve index.html for unmatched routes
-      app.get("*", (req: Request, res: Response) => {
+      app.use((req: Request, res: Response) => {
         res.sendFile(path.resolve(__dirname, "dist/index.html"));
       });
     }
