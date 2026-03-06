@@ -40,6 +40,12 @@ const AnonymousUploadPortal: React.FC = () => {
     setUploadProgress(10);
 
     try {
+      // Validate API key before proceeding
+      const apiKey = process.env.API_KEY;
+      if (!apiKey || apiKey.includes('your_') || apiKey === 'undefined') {
+        throw new Error('Gemini API key is not configured. Please add a valid VITE_GEMINI_API_KEY to your .env file. Get one at https://aistudio.google.com/app/apikey');
+      }
+
       // Step 1: Simulated Anonymization & Metadata Stripping
       await new Promise(r => setTimeout(r, 1500));
       setIsAnonymizing(false);
@@ -50,7 +56,7 @@ const AnonymousUploadPortal: React.FC = () => {
       setUploadProgress(55);
 
       // Step 2: Multi-Modal AI Forensic Audit
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-2.0-flash',
         contents: [{
