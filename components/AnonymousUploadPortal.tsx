@@ -66,6 +66,17 @@ const AnonymousUploadPortal: React.FC = () => {
             }
           ]
         }],
+        systemInstruction: `You are a High-Fidelity Safety Incident Forensic AI. You provide machine-readable forensic audits for urban security grids.
+        
+        ANALYTICS PROTOCOL:
+        - Task 1: Visible Threat Detection.
+        - Task 2: Manipulation Audit (Forensics).
+        - Task 3: Metadata/Context Consistency.
+        - Task 4: Severity Classification.
+        - Task 5: Verification Recommendation.
+        - Task 6: Intelligence Summary.
+
+        Return ONLY valid JSON. Be clinically objective.`,
         generationConfig: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -119,19 +130,7 @@ const AnonymousUploadPortal: React.FC = () => {
             },
             required: ["threat_detection", "manipulation_audit", "metadata_consistency", "severity", "verification_recommendation", "intelligence_summary"]
           }
-        },
-        systemInstruction: `You are a High-Fidelity Safety Incident Forensic AI. You provide machine-readable forensic audits for urban security grids.
-        
-        ANALYTICS PROTOCOL:
-        - Task 1: Visible Threat Detection.
-        - Task 2: Manipulation Audit (Forensics).
-        - Task 3: Metadata/Context Consistency.
-        - Task 4: Severity Classification.
-        - Task 5: Verification Recommendation.
-        - Task 6: Intelligence Summary.
-
-        Return ONLY valid JSON. Be clinically objective.`
-      }
+        }
       });
 
       const result = JSON.parse(response.text || '{}');

@@ -143,6 +143,15 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
             }
           ]
         }],
+        systemInstruction: `You are a Predictive Tactical Forensic AI. You analyze behavioral patterns in urban mobility feeds.
+        
+        OUTPUT PROTOCOL:
+        - Detect hazards and unique ANOMALIES.
+        - Track TEMPORAL TRENDS.
+        - PREDICTIVE RISK: Probability of escalation and projected outcome.
+        - RISK VECTORS: Directional or thematic risk components.
+        - SEVERITY: LOW, MEDIUM, HIGH, CRITICAL.
+        - Return ONLY structured JSON.`,
         generationConfig: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -199,16 +208,7 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
             },
             required: ["detected_hazards", "anomalies", "acoustic_events", "temporal_trend", "predictive_risk", "risk_vectors", "crowd_panic", "severity", "emergency_recommendation", "justification", "confidence", "forensics"]
           }
-        },
-        systemInstruction: `You are a Predictive Tactical Forensic AI. You analyze behavioral patterns in urban mobility feeds.
-        
-        OUTPUT PROTOCOL:
-        - Detect hazards and unique ANOMALIES.
-        - Track TEMPORAL TRENDS.
-        - PREDICTIVE RISK: Probability of escalation and projected outcome.
-        - RISK VECTORS: Directional or thematic risk components.
-        - SEVERITY: LOW, MEDIUM, HIGH, CRITICAL.
-        - Return ONLY structured JSON.`
+        }
       });
 
       const result = JSON.parse(response.text || '{}');
