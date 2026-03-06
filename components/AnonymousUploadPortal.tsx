@@ -133,12 +133,34 @@ const AnonymousUploadPortal: React.FC = () => {
         }
       });
 
-      const result = JSON.parse(response.text || '{}');
+      let result;
+      try {
+        // Parse Gemini API response - handle multiple possible response structures
+        const responseText = response.text || 
+          (response.candidates?.[0]?.content?.parts?.[0]?.text) || 
+          (typeof response === 'string' ? response : '');
+        
+        if (!responseText) {
+          throw new Error('No text content in API response');
+        }
+        
+        result = JSON.parse(responseText);
+        
+        // Validate response structure
+        if (!result.threat_detection || !result.verification_recommendation) {
+          throw new Error('Invalid response schema: missing required fields');
+        }
+      } catch (parseErr) {
+        console.error('Failed to parse Gemini response:', parseErr);
+        setUploadProgress(0);
+        throw new Error(`Response parsing failed: ${parseErr instanceof Error ? parseErr.message : 'Unknown error'}`);
+      }
+      
       setResults(result);
       setUploadProgress(100);
 
       // Map to global alert state if verified
-      if (handleNewAlert && result.verification_recommendation.status !== 'SUSPICIOUS') {
+      if (handleNewAlert && result?.verification_recommendation?.status !== 'SUSPICIOUS') {
         handleNewAlert({
           id: `UPL-${Date.now()}`,
           label: result.threat_detection.visible_threats[0]?.toUpperCase() || 'VIDEO EVIDENCE',
@@ -182,8 +204,15 @@ const AnonymousUploadPortal: React.FC = () => {
       }
 
     } catch (err) {
-      console.error("Forensic analysis failed", err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      console.error("Intelligence verification failed:", err);
+      console.error("Error details:", errorMessage);
       setUploadProgress(0);
+      setResults({
+        error: true,
+        errorMessage: `Verification failed: ${errorMessage}`,
+        message: 'The forensic audit could not be completed. Please try again or contact support.'
+      } as any);
     } finally {
       setIsProcessing(false);
     }
@@ -278,15 +307,27 @@ const AnonymousUploadPortal: React.FC = () => {
               {results ? (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom duration-1000 overflow-y-auto pr-2 custom-scrollbar">
                    
+                   {/* Error Display */}
+                   {(results as any).error && (
+                     <div className="space-y-4 p-8 rounded-[2.5rem] border border-red-500/30 bg-red-600/10">
+                       <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.4em]">Verification Failed</h4>
+                       <p className="text-[11px] text-red-200 font-medium">{(results as any).errorMessage}</p>
+                       <p className="text-[10px] text-red-300 italic">{(results as any).message}</p>
+                     </div>
+                   )}
+                   
                    {/* Intelligence Summary Task */}
+                   {!(results as any).error && (
                    <div className="space-y-4">
                       <h4 className="text-[10px] font-black text-purple-500 uppercase tracking-[0.4em]">Task 6: Intelligence Summary</h4>
                       <div className="bg-purple-600/10 border border-purple-500/30 p-8 rounded-[2.5rem] italic text-[11px] text-zinc-300 leading-relaxed font-medium">
                          "{results.intelligence_summary}"
                       </div>
                    </div>
+                   )}
 
                    {/* Recommendation Task */}
+                   {!(results as any).error && (
                    <div className="space-y-4 pt-4 border-t border-white/5">
                       <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em]">Task 5: Verification Recommendation</h4>
                       <div className={`p-8 rounded-[2.5rem] border ${results.verification_recommendation.status === 'VERIFIED' ? 'bg-green-600/10 border-green-500/30' : results.verification_recommendation.status === 'SUSPICIOUS' ? 'bg-red-600/10 border-red-500/30' : 'bg-orange-600/10 border-orange-500/30'} flex flex-col items-center text-center gap-4`}>
@@ -300,8 +341,10 @@ const AnonymousUploadPortal: React.FC = () => {
                          <p className="text-[10px] text-zinc-400 leading-relaxed font-medium italic">"{results.verification_recommendation.summary}"</p>
                       </div>
                    </div>
+                   )}
 
                    {/* Threat Task */}
+                   {!(results as any).error && (
                    <div className="space-y-4 pt-4 border-t border-white/5">
                       <h4 className="text-[10px] font-black text-orange-500 uppercase tracking-[0.4em]">Task 1: Threat Detection</h4>
                       <div className="flex flex-wrap gap-2">
@@ -313,8 +356,10 @@ const AnonymousUploadPortal: React.FC = () => {
                         ))}
                       </div>
                    </div>
+                   )}
 
                    {/* Severity Task */}
+                   {!(results as any).error && (
                    <div className="space-y-4 pt-4 border-t border-white/5">
                       <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.4em]">Task 4: Severity Classification</h4>
                       <div className="bg-red-600/5 p-6 rounded-2xl border border-red-500/10 space-y-3">
@@ -325,8 +370,10 @@ const AnonymousUploadPortal: React.FC = () => {
                         <p className="text-[10px] text-zinc-400 font-medium italic leading-relaxed">"{results.severity.justification}"</p>
                       </div>
                    </div>
+                   )}
 
                    {/* Forensic Task */}
+                   {!(results as any).error && (
                    <div className="space-y-4 pt-4 border-t border-white/5">
                       <h4 className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em]">Task 2: Manipulation Audit</h4>
                       <div className="grid grid-cols-2 gap-4">
@@ -344,8 +391,10 @@ const AnonymousUploadPortal: React.FC = () => {
                         </div>
                       </div>
                    </div>
+                   )}
 
                    {/* Metadata Task */}
+                   {!(results as any).error && (
                    <div className="space-y-4 pt-4 border-t border-white/5">
                       <h4 className="text-[10px] font-black text-green-500 uppercase tracking-[0.4em]">Task 3: Metadata Consistency</h4>
                       <div className="bg-green-600/5 p-5 rounded-2xl border border-green-500/10 space-y-3">
@@ -362,6 +411,8 @@ const AnonymousUploadPortal: React.FC = () => {
                         </div>
                       </div>
                    </div>
+                   )}
+                   )}
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-30 gap-8">

@@ -211,11 +211,32 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
         }
       });
 
-      const result = JSON.parse(response.text || '{}');
+      let result;
+      try {
+        // Parse Gemini API response - handle multiple possible response structures
+        const responseText = response.text || 
+          (response.candidates?.[0]?.content?.parts?.[0]?.text) || 
+          (typeof response === 'string' ? response : '');
+        
+        if (!responseText) {
+          throw new Error('No text content in API response');
+        }
+        
+        result = JSON.parse(responseText);
+        
+        // Validate response structure
+        if (!result.detected_hazards || !result.forensics) {
+          throw new Error('Invalid response schema: missing required fields');
+        }
+      } catch (parseErr) {
+        console.error('Failed to parse Gemini response:', parseErr);
+        throw new Error(`Response parsing failed: ${parseErr instanceof Error ? parseErr.message : 'Unknown error'}`);
+      }
+      
       setDetectionResults(result);
 
       // 1. Slashing Guardrail Check
-      if (result.forensics.deepfake_probability > 0.85 || result.justification.toLowerCase().includes('synthetic')) {
+      if (result?.forensics?.deepfake_probability > 0.85 || result?.justification?.toLowerCase?.()?.includes('synthetic')) {
         setIsSlashing(true);
         setTrustRank('Watcher');
         setTokens(prev => Math.max(0, prev - 500)); // Slashing penalty
@@ -278,10 +299,17 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
         } as any);
       }
     } catch (error) {
-      console.error("Pulse Audit Failed", error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error("Sentry Pulse Audit Failed:", error);
+      console.error("Error details:", errorMessage);
+      // Set node status to indicate verification failure
+      setNodeStatus('ERROR');
+      // Don't throw - allow the component to continue monitoring
     } finally {
       setIsAnalyzing(false);
-      setNodeStatus('ACTIVE');
+      if (setNodeStatus !== 'ERROR') {
+        setNodeStatus('ACTIVE');
+      }
     }
   }, [isStreaming, currentLocation, isAnalyzing, deviceFingerprint, handleNewAlert]);
 
