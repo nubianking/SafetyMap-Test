@@ -128,33 +128,8 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
       const mediaHash = `sha256-${Math.random().toString(36).substr(2, 32)}`;
 
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
+      const model = ai.getGenerativeModel({
         model: 'gemini-3.1-flash-lite-preview',
-        contents: [{
-          parts: [
-            { inlineData: { mimeType: 'video/webm', data: segmentData } },
-            { text: `Sentry Behavior & Anomaly Audit:
-              1. Visual: Detect specific threats (weapons, collisions) and TRACK their status over the 3s.
-              2. Anomalies: Identify erratic patterns (aggressive driving, unusual loitering, sudden crowd movement).
-              3. Acoustic: Match audio spikes to visual events.
-              4. Trend: Determine if the situation is ESCALATING, STABILIZING, or STATIC.
-              5. Predictive: Based on the current trajectory, what is the most likely outcome in the next 15-30 seconds?
-              6. Risk Vectors: Identify specific directional risks (e.g., "Northbound Traffic Surge", "Pedestrian Cluster at Intersection").` 
-            }
-          ]
-        }],
-        systemInstruction: `You are a Predictive Tactical Forensic AI. You analyze behavioral patterns in urban mobility feeds.
-        
-        CRITICAL: Return ONLY valid JSON. No text before, after, or within the JSON. No markdown code blocks. No explanations.
-        
-        OUTPUT PROTOCOL:
-        - Detect hazards and unique ANOMALIES.
-        - Track TEMPORAL TRENDS.
-        - PREDICTIVE RISK: Probability of escalation and projected outcome.
-        - RISK VECTORS: Directional or thematic risk components.
-        - SEVERITY: LOW, MEDIUM, HIGH, CRITICAL.
-        
-        Output must be a single valid JSON object starting with { and ending with }. No other text.`,
         generationConfig: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -198,6 +173,47 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
               crowd_panic: { type: Type.NUMBER },
               severity: { type: Type.STRING },
               emergency_recommendation: { type: Type.STRING },
+              justification: { type: Type.STRING },
+              confidence: { type: Type.NUMBER },
+              forensics: {
+                type: Type.OBJECT,
+                properties: {
+                  deepfake_probability: { type: Type.NUMBER },
+                  authenticity_assessment: { type: Type.STRING }
+                },
+                required: ["deepfake_probability", "authenticity_assessment"]
+              }
+            },
+            required: ["detected_hazards", "forensics", "severity"]
+          }
+        }
+      });
+      const response = await model.generateContent({
+        contents: [{
+          parts: [
+            { inlineData: { mimeType: 'video/webm', data: segmentData } },
+            { text: `Sentry Behavior & Anomaly Audit:
+              1. Visual: Detect specific threats (weapons, collisions) and TRACK their status over the 3s.
+              2. Anomalies: Identify erratic patterns (aggressive driving, unusual loitering, sudden crowd movement).
+              3. Acoustic: Match audio spikes to visual events.
+              4. Trend: Determine if the situation is ESCALATING, STABILIZING, or STATIC.
+              5. Predictive: Based on the current trajectory, what is the most likely outcome in the next 15-30 seconds?
+              6. Risk Vectors: Identify specific directional risks (e.g., "Northbound Traffic Surge", "Pedestrian Cluster at Intersection").` 
+            }
+          ]
+        }],
+        systemInstruction: `You are a Predictive Tactical Forensic AI. You analyze behavioral patterns in urban mobility feeds.
+        
+        CRITICAL: Return ONLY valid JSON. No text before, after, or within the JSON. No markdown code blocks. No explanations.
+        
+        OUTPUT PROTOCOL:
+        - Detect hazards and unique ANOMALIES.
+        - Track TEMPORAL TRENDS.
+        - PREDICTIVE RISK: Probability of escalation and projected outcome.
+        - RISK VECTORS: Directional or thematic risk components.
+        - SEVERITY: LOW, MEDIUM, HIGH, CRITICAL.
+        
+        Output must be a single valid JSON object starting with { and ending with }. No other text.`
               justification: { type: Type.STRING },
               confidence: { type: Type.NUMBER },
               forensics: {
