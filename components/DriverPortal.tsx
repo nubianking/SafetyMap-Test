@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../contexts/AppContext';
 import { ICONS } from '../constants';
@@ -49,6 +49,77 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Hoist Gemini API client & model — created once, reused on every analysis cycle
+  const geminiModel = useMemo(() => {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey || apiKey.includes('your_') || apiKey === 'undefined') {
+      console.error('[GEMINI] API key is not configured. Add VITE_GEMINI_API_KEY to your .env file.');
+      return null;
+    }
+    const ai = new GoogleGenAI({ apiKey });
+    return ai.getGenerativeModel({
+      model: 'gemini-3.1-flash-lite-preview',
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            detected_hazards: { type: Type.ARRAY, items: { type: Type.STRING } },
+            anomalies: { 
+              type: Type.ARRAY, 
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  type: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  confidence: { type: Type.NUMBER }
+                },
+                required: ["type", "description", "confidence"]
+              }
+            },
+            acoustic_events: { type: Type.ARRAY, items: { type: Type.STRING } },
+            temporal_trend: { type: Type.STRING, description: "ESCALATING, STABILIZING, STATIC, or FLUCTUATING" },
+            predictive_risk: {
+              type: Type.OBJECT,
+              properties: {
+                probability: { type: Type.NUMBER },
+                timeframe: { type: Type.STRING },
+                projected_outcome: { type: Type.STRING }
+              },
+              required: ["probability", "timeframe", "projected_outcome"]
+            },
+            risk_vectors: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  type: { type: Type.STRING },
+                  magnitude: { type: Type.NUMBER }
+                },
+                required: ["type", "magnitude"]
+              }
+            },
+            crowd_panic: { type: Type.NUMBER },
+            severity: { type: Type.STRING },
+            emergency_recommendation: { type: Type.STRING },
+            justification: { type: Type.STRING },
+            confidence: { type: Type.NUMBER },
+            forensics: {
+              type: Type.OBJECT,
+              properties: {
+                deepfake_probability: { type: Type.NUMBER },
+                authenticity_assessment: { type: Type.STRING }
+              },
+              required: ["deepfake_probability", "authenticity_assessment"]
+            }
+          },
+          required: ["detected_hazards", "forensics", "severity"]
+        }
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -127,68 +198,10 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
       const segmentData = await recordSegment(streamRef.current, 3000);
       const mediaHash = `sha256-${Math.random().toString(36).substr(2, 32)}`;
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const model = ai.getGenerativeModel({
-        model: 'gemini-3.1-flash-lite-preview',
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              detected_hazards: { type: Type.ARRAY, items: { type: Type.STRING } },
-              anomalies: { 
-                type: Type.ARRAY, 
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    type: { type: Type.STRING },
-                    description: { type: Type.STRING },
-                    confidence: { type: Type.NUMBER }
-                  },
-                  required: ["type", "description", "confidence"]
-                }
-              },
-              acoustic_events: { type: Type.ARRAY, items: { type: Type.STRING } },
-              temporal_trend: { type: Type.STRING, description: "ESCALATING, STABILIZING, STATIC, or FLUCTUATING" },
-              predictive_risk: {
-                type: Type.OBJECT,
-                properties: {
-                  probability: { type: Type.NUMBER },
-                  timeframe: { type: Type.STRING },
-                  projected_outcome: { type: Type.STRING }
-                },
-                required: ["probability", "timeframe", "projected_outcome"]
-              },
-              risk_vectors: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    type: { type: Type.STRING },
-                    magnitude: { type: Type.NUMBER }
-                  },
-                  required: ["type", "magnitude"]
-                }
-              },
-              crowd_panic: { type: Type.NUMBER },
-              severity: { type: Type.STRING },
-              emergency_recommendation: { type: Type.STRING },
-              justification: { type: Type.STRING },
-              confidence: { type: Type.NUMBER },
-              forensics: {
-                type: Type.OBJECT,
-                properties: {
-                  deepfake_probability: { type: Type.NUMBER },
-                  authenticity_assessment: { type: Type.STRING }
-                },
-                required: ["deepfake_probability", "authenticity_assessment"]
-              }
-            },
-            required: ["detected_hazards", "forensics", "severity"]
-          }
-        }
-      });
+      if (!geminiModel) {
+        throw new Error('Gemini API key is not configured. Please add a valid VITE_GEMINI_API_KEY to your .env file. Get one at https://aistudio.google.com/app/apikey');
+      }
+      const model = geminiModel;
       // Robust response sanitization function
       const parseGeminiResponse = (response: any): any => {
         try {
