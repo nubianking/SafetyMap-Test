@@ -208,6 +208,10 @@ The application requires the following environment variables:
 - `VITE_GEMINI_API_KEY`: Your Google Gemini API key for running the forensic and predictive AI models
 - `VITE_GOOGLE_MAPS_API_KEY`: Your Google Maps Platform API key for geocoding, places, directions, and distance matrix
 
-## 📜 License
+## � Contributors
+
+* **Otemade Balogun** – balogun.otemade@gmail.com
+
+## �📜 License
 
 Proprietary / Confidential.
