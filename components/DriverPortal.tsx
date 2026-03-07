@@ -131,6 +131,7 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
       const model = ai.getGenerativeModel({
         model: 'gemini-3.1-flash-lite-preview',
         generationConfig: {
+          temperature: 0.1,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -188,11 +189,105 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
           }
         }
       });
-      const response = await model.generateContent({
-        contents: [{
-          parts: [
-            { inlineData: { mimeType: 'video/webm', data: segmentData } },
-            { text: `You are a predictive tactical forensic AI. Analyze the provided media segment and return ONLY a JSON object.
+      // Robust response sanitization function
+      const parseGeminiResponse = (response: any): any => {
+        try {
+          let text = response.text || 
+            (response.candidates?.[0]?.content?.parts?.[0]?.text) || 
+            (typeof response === 'string' ? response : '');
+          
+          if (!text) {
+            throw new Error('No text content in API response');
+          }
+          
+          console.log('[DEBUG] Raw response:', text.substring(0, 200));
+          
+          // Strategy 1: Try to extract JSON from markdown code blocks
+          const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+          if (markdownMatch) {
+            console.log('[DEBUG] Found markdown code block');
+            try {
+              const parsed = JSON.parse(markdownMatch[1].trim());
+              console.log('[DEBUG] Successfully parsed JSON from markdown block');
+              return parsed;
+            } catch (e) {
+              console.warn('[DEBUG] Failed to parse JSON from markdown block:', e);
+            }
+          }
+          
+          // Strategy 2: Find first { and match braces
+          const firstBrace = text.indexOf('{');
+          if (firstBrace !== -1) {
+            let braceCount = 0;
+            for (let i = firstBrace; i < text.length; i++) {
+              if (text[i] === '{') braceCount++;
+              if (text[i] === '}') {
+                braceCount--;
+                if (braceCount === 0) {
+                  const jsonStr = text.substring(firstBrace, i + 1).trim();
+                  console.log('[DEBUG] Found JSON object via brace matching');
+                  try {
+                    const parsed = JSON.parse(jsonStr);
+                    console.log('[DEBUG] Successfully parsed brace-matched JSON');
+                    return parsed;
+                  } catch (e) {
+                    console.warn('[DEBUG] Failed to parse brace-matched JSON:', e);
+                  }
+                }
+              }
+            }
+          }
+          
+          // Strategy 3: Try direct JSON parse (trimmed)
+          const trimmed = text.trim();
+          try {
+            const parsed = JSON.parse(trimmed);
+            console.log('[DEBUG] Successfully parsed direct JSON');
+            return parsed;
+          } catch (e) {
+            console.warn('[DEBUG] Direct JSON parse failed:', e);
+          }
+          
+          // Strategy 4: Try removing common prefixes
+          const cleanedText = trimmed
+            .replace(/^(here's?|the json|```)/gi, '')
+            .replace(/^[\s\n]*{/g, '{')
+            .trim();
+          
+          try {
+            const parsed = JSON.parse(cleanedText);
+            console.log('[DEBUG] Successfully parsed cleaned JSON');
+            return parsed;
+          } catch (e) {
+            console.warn('[DEBUG] Cleaned JSON parse failed:', e);
+          }
+          
+          // All strategies failed
+          console.error('[ERROR] Raw response preview:', text.substring(0, 300));
+          throw new Error(`Unable to extract valid JSON from response. First 100 chars: ${text.substring(0, 100)}`);
+          
+        } catch (error) {
+          throw new Error(`Response parsing failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      };
+
+      // Retry logic with exponential backoff
+      const MAX_RETRIES = 3;
+      let result;
+      let lastError: Error | null = null;
+
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          if (attempt > 0) {
+            console.log(`[RETRY] Attempt ${attempt + 1}/${MAX_RETRIES} after ${1000 * attempt}ms backoff`);
+            await new Promise(r => setTimeout(r, 1000 * attempt));
+          }
+
+          const response = await model.generateContent({
+            contents: [{
+              parts: [
+                { inlineData: { mimeType: 'video/webm', data: segmentData } },
+                { text: `You are a predictive tactical forensic AI. Analyze the provided media segment and return ONLY a JSON object.
 DO NOT include markdown formatting, explanations, code blocks, or conversational text.
 Your entire response must be valid, parseable JSON.
 
@@ -231,169 +326,42 @@ Required JSON structure:
 }
 
 Analyze the following evidence and return ONLY the JSON object:` 
-            }
-          ]
-        }],
-        systemInstruction: `You are a Predictive Tactical Forensic AI specializing in urban mobility behavioral analysis.
-        
-        CRITICAL REQUIREMENTS:
-        1. Return ONLY valid JSON - nothing else
-        2. No markdown formatting, code blocks, or explanations
-        3. No conversational text before or after JSON
-        4. Your response must start with { and end with }
-        5. All strings must be properly escaped
-        6. All numbers must be valid JSON numbers (0-1 for probabilities/confidence)
-        7. All required fields must be present
-        
-        Analyze behavioral patterns forensically and provide structured, predictive risk assessment.`
-              justification: { type: Type.STRING },
-              confidence: { type: Type.NUMBER },
-              forensics: {
-                type: Type.OBJECT,
-                properties: {
-                  integrity_score: { type: Type.NUMBER },
-                  deepfake_probability: { type: Type.NUMBER }
-                },
-                required: ["integrity_score", "deepfake_probability"]
-              }
-            },
-            required: ["detected_hazards", "anomalies", "acoustic_events", "temporal_trend", "predictive_risk", "risk_vectors", "crowd_panic", "severity", "emergency_recommendation", "justification", "confidence", "forensics"]
-          }
-        }
-      });
-
-      let result;
-      // Helper function to extract JSON from text
-      const extractJSON = (text: string): string => {
-        // Try removing markdown code blocks first
-        let cleaned = text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '');
-        
-        // Try to find JSON object starting from first {
-        const firstBrace = cleaned.indexOf('{');
-        if (firstBrace !== -1) {
-          // Find matching closing brace
-          let braceCount = 0;
-          for (let i = firstBrace; i < cleaned.length; i++) {
-            if (cleaned[i] === '{') braceCount++;
-            if (cleaned[i] === '}') {
-              braceCount--;
-              if (braceCount === 0) {
-                return cleaned.substring(firstBrace, i + 1);
-              }
-            }
-          }
-        }
-        
-        // Fallback: try array extraction
-        const firstBracket = cleaned.indexOf('[');
-        if (firstBracket !== -1) {
-          let bracketCount = 0;
-          for (let i = firstBracket; i < cleaned.length; i++) {
-            if (cleaned[i] === '[') bracketCount++;
-            if (cleaned[i] === ']') {
-              bracketCount--;
-              if (bracketCount === 0) {
-                return cleaned.substring(firstBracket, i + 1);
-              }
-            }
-          }
-        }
-        
-        return text;
-      };
-      
-      try {
-        // Robust response sanitization function
-        const parseGeminiResponse = (response: any): any => {
-          try {
-            let text = response.text || 
-              (response.candidates?.[0]?.content?.parts?.[0]?.text) || 
-              (typeof response === 'string' ? response : '');
-            
-            if (!text) {
-              throw new Error('No text content in API response');
-            }
-            
-            console.log('[DEBUG] Raw response:', text.substring(0, 200));
-            
-            // Strategy 1: Try to extract JSON from markdown code blocks
-            const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-            if (markdownMatch) {
-              console.log('[DEBUG] Found markdown code block');
-              try {
-                const parsed = JSON.parse(markdownMatch[1].trim());
-                console.log('[DEBUG] Successfully parsed JSON from markdown block');
-                return parsed;
-              } catch (e) {
-                console.warn('[DEBUG] Failed to parse JSON from markdown block:', e);
-              }
-            }
-            
-            // Strategy 2: Find first { and match braces
-            const firstBrace = text.indexOf('{');
-            if (firstBrace !== -1) {
-              let braceCount = 0;
-              for (let i = firstBrace; i < text.length; i++) {
-                if (text[i] === '{') braceCount++;
-                if (text[i] === '}') {
-                  braceCount--;
-                  if (braceCount === 0) {
-                    const jsonStr = text.substring(firstBrace, i + 1).trim();
-                    console.log('[DEBUG] Found JSON object via brace matching');
-                    try {
-                      const parsed = JSON.parse(jsonStr);
-                      console.log('[DEBUG] Successfully parsed brace-matched JSON');
-                      return parsed;
-                    } catch (e) {
-                      console.warn('[DEBUG] Failed to parse brace-matched JSON:', e);
-                    }
-                  }
                 }
-              }
-            }
+              ]
+            }],
+            systemInstruction: `You are a Predictive Tactical Forensic AI specializing in urban mobility behavioral analysis.
             
-            // Strategy 3: Try direct JSON parse (trimmed)
-            const trimmed = text.trim();
-            try {
-              const parsed = JSON.parse(trimmed);
-              console.log('[DEBUG] Successfully parsed direct JSON');
-              return parsed;
-            } catch (e) {
-              console.warn('[DEBUG] Direct JSON parse failed:', e);
-            }
+            CRITICAL REQUIREMENTS:
+            1. Return ONLY valid JSON - nothing else
+            2. No markdown formatting, code blocks, or explanations
+            3. No conversational text before or after JSON
+            4. Your response must start with { and end with }
+            5. All strings must be properly escaped
+            6. All numbers must be valid JSON numbers (0-1 for probabilities/confidence)
+            7. All required fields must be present
             
-            // Strategy 4: Try removing common prefixes
-            const cleanedText = trimmed
-              .replace(/^(here's?|the json|```)/gi, '')
-              .replace(/^[\s\n]*{/g, '{')
-              .trim();
-            
-            try {
-              const parsed = JSON.parse(cleanedText);
-              console.log('[DEBUG] Successfully parsed cleaned JSON');
-              return parsed;
-            } catch (e) {
-              console.warn('[DEBUG] Cleaned JSON parse failed:', e);
-            }
-            
-            // All strategies failed
-            console.error('[ERROR] Raw response preview:', text.substring(0, 300));
-            throw new Error(`Unable to extract valid JSON from response. First 100 chars: ${text.substring(0, 100)}`);
-            
-          } catch (error) {
-            throw new Error(`Response parsing failed: ${error instanceof Error ? error.message : String(error)}`);
+            Analyze behavioral patterns forensically and provide structured, predictive risk assessment.`
+          });
+
+          result = parseGeminiResponse(response);
+
+          // Validate response structure
+          if (!result.detected_hazards || !result.forensics) {
+            throw new Error('Invalid response schema: missing required fields');
           }
-        };
-        
-        result = parseGeminiResponse(response);
-        
-        // Validate response structure
-        if (!result.detected_hazards || !result.forensics) {
-          throw new Error('Invalid response schema: missing required fields');
+
+          // Success — break out of retry loop
+          console.log(`[RETRY] Succeeded on attempt ${attempt + 1}`);
+          lastError = null;
+          break;
+        } catch (retryErr) {
+          lastError = retryErr instanceof Error ? retryErr : new Error(String(retryErr));
+          console.error(`[RETRY] Attempt ${attempt + 1}/${MAX_RETRIES} failed:`, lastError.message);
+          if (attempt === MAX_RETRIES - 1) {
+            console.error('Failed to parse Gemini response after all retries:', lastError);
+            throw new Error(`Response parsing failed after ${MAX_RETRIES} attempts: ${lastError.message}`);
+          }
         }
-      } catch (parseErr) {
-        console.error('Failed to parse Gemini response:', parseErr);
-        throw new Error(`Response parsing failed: ${parseErr instanceof Error ? parseErr.message : 'Unknown error'}`);
       }
       
       setDetectionResults(result);

@@ -60,6 +60,7 @@ const AnonymousUploadPortal: React.FC = () => {
       const model = ai.getGenerativeModel({
         model: 'gemini-3.1-flash-lite-preview',
         generationConfig: {
+          temperature: 0.1,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -114,63 +115,6 @@ const AnonymousUploadPortal: React.FC = () => {
           }
         }
       });
-      const response = await model.generateContent({
-        contents: [{
-          parts: [
-            { inlineData: { mimeType: file.type, data: base64Data } },
-            { text: `You are a forensic audit AI. Analyze the provided media and return ONLY a JSON object.
-DO NOT include markdown formatting, explanations, code blocks, or conversational text.
-Your entire response must be valid, parseable JSON.
-
-Required JSON structure:
-{
-  "threat_detection": {
-    "visible_threats": string[],
-    "confidence": number,
-    "timestamp_occurrences": string[]
-  },
-  "manipulation_audit": {
-    "deepfake_probability": number,
-    "manipulation_detected": boolean,
-    "artifact_notes": string
-  },
-  "metadata_consistency": {
-    "is_consistent": boolean,
-    "lighting_weather_match": string,
-    "landmark_verification": string[]
-  },
-  "severity": {
-    "level": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
-    "justification": string
-  },
-  "verification_recommendation": {
-    "status": "VERIFIED" | "NEEDS_REVIEW" | "SUSPICIOUS",
-    "trust_score": number,
-    "summary": string
-  },
-  "intelligence_summary": string
-}
-
-Analyze the following evidence and return ONLY the JSON object:` 
-            }
-          ]
-        }],
-        systemInstruction: `You are a High-Fidelity Safety Incident Forensic AI specializing in machine-readable forensic audits.
-        
-        CRITICAL REQUIREMENTS:
-        1. Return ONLY valid JSON - nothing else
-        2. No markdown formatting, code blocks, or explanations
-        3. No conversational text before or after JSON
-        4. Your response must start with { and end with }
-        5. All strings must be properly escaped
-        6. All numbers must be valid JSON numbers (0-1 for probabilities/confidence)
-        7. All required fields must be present
-        
-        Be clinically objective and forensically accurate.`
-      });
-
-      let result;
-      
       // Robust response sanitization function
       const parseGeminiResponse = (response: any): any => {
         try {
@@ -252,18 +196,94 @@ Analyze the following evidence and return ONLY the JSON object:`
           throw new Error(`Response parsing failed: ${error instanceof Error ? error.message : String(error)}`);
         }
       };
-      
-      try {
-        result = parseGeminiResponse(response);
-        
-        // Validate response structure
-        if (!result.threat_detection || !result.verification_recommendation) {
-          throw new Error('Invalid response schema: missing required fields');
+
+      // Retry logic with exponential backoff
+      const MAX_RETRIES = 3;
+      let result;
+      let lastError: Error | null = null;
+
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          if (attempt > 0) {
+            console.log(`[RETRY] Attempt ${attempt + 1}/${MAX_RETRIES} after ${1000 * attempt}ms backoff`);
+            await new Promise(r => setTimeout(r, 1000 * attempt));
+          }
+
+          const response = await model.generateContent({
+            contents: [{
+              parts: [
+                { inlineData: { mimeType: file.type, data: base64Data } },
+                { text: `You are a forensic audit AI. Analyze the provided media and return ONLY a JSON object.
+DO NOT include markdown formatting, explanations, code blocks, or conversational text.
+Your entire response must be valid, parseable JSON.
+
+Required JSON structure:
+{
+  "threat_detection": {
+    "visible_threats": string[],
+    "confidence": number,
+    "timestamp_occurrences": string[]
+  },
+  "manipulation_audit": {
+    "deepfake_probability": number,
+    "manipulation_detected": boolean,
+    "artifact_notes": string
+  },
+  "metadata_consistency": {
+    "is_consistent": boolean,
+    "lighting_weather_match": string,
+    "landmark_verification": string[]
+  },
+  "severity": {
+    "level": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
+    "justification": string
+  },
+  "verification_recommendation": {
+    "status": "VERIFIED" | "NEEDS_REVIEW" | "SUSPICIOUS",
+    "trust_score": number,
+    "summary": string
+  },
+  "intelligence_summary": string
+}
+
+Analyze the following evidence and return ONLY the JSON object:` 
+                }
+              ]
+            }],
+            systemInstruction: `You are a High-Fidelity Safety Incident Forensic AI specializing in machine-readable forensic audits.
+            
+            CRITICAL REQUIREMENTS:
+            1. Return ONLY valid JSON - nothing else
+            2. No markdown formatting, code blocks, or explanations
+            3. No conversational text before or after JSON
+            4. Your response must start with { and end with }
+            5. All strings must be properly escaped
+            6. All numbers must be valid JSON numbers (0-1 for probabilities/confidence)
+            7. All required fields must be present
+            
+            Be clinically objective and forensically accurate.`
+          });
+
+          result = parseGeminiResponse(response);
+
+          // Validate response structure
+          if (!result.threat_detection || !result.verification_recommendation) {
+            throw new Error('Invalid response schema: missing required fields');
+          }
+
+          // Success — break out of retry loop
+          console.log(`[RETRY] Succeeded on attempt ${attempt + 1}`);
+          lastError = null;
+          break;
+        } catch (retryErr) {
+          lastError = retryErr instanceof Error ? retryErr : new Error(String(retryErr));
+          console.error(`[RETRY] Attempt ${attempt + 1}/${MAX_RETRIES} failed:`, lastError.message);
+          if (attempt === MAX_RETRIES - 1) {
+            console.error('Failed to parse Gemini response after all retries:', lastError);
+            setUploadProgress(0);
+            throw new Error(`Response parsing failed after ${MAX_RETRIES} attempts: ${lastError.message}`);
+          }
         }
-      } catch (parseErr) {
-        console.error('Failed to parse Gemini response:', parseErr);
-        setUploadProgress(0);
-        throw new Error(`Response parsing failed: ${parseErr instanceof Error ? parseErr.message : 'Unknown error'}`);
       }
       
       setResults(result);
