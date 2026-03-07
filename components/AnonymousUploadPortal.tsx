@@ -171,62 +171,90 @@ Analyze the following evidence and return ONLY the JSON object:`
 
       let result;
       
-      // Helper function to extract JSON from text
-      const extractJSON = (text: string): string => {
-        // Try removing markdown code blocks first
-        let cleaned = text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '');
-        
-        // Try to find JSON object starting from first {
-        const firstBrace = cleaned.indexOf('{');
-        if (firstBrace !== -1) {
-          // Find matching closing brace
-          let braceCount = 0;
-          for (let i = firstBrace; i < cleaned.length; i++) {
-            if (cleaned[i] === '{') braceCount++;
-            if (cleaned[i] === '}') {
-              braceCount--;
-              if (braceCount === 0) {
-                return cleaned.substring(firstBrace, i + 1);
+      // Robust response sanitization function
+      const parseGeminiResponse = (response: any): any => {
+        try {
+          let text = response.text || 
+            (response.candidates?.[0]?.content?.parts?.[0]?.text) || 
+            (typeof response === 'string' ? response : '');
+          
+          if (!text) {
+            throw new Error('No text content in API response');
+          }
+          
+          console.log('[DEBUG] Raw response:', text.substring(0, 200));
+          
+          // Strategy 1: Try to extract JSON from markdown code blocks
+          const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+          if (markdownMatch) {
+            console.log('[DEBUG] Found markdown code block');
+            try {
+              const parsed = JSON.parse(markdownMatch[1].trim());
+              console.log('[DEBUG] Successfully parsed JSON from markdown block');
+              return parsed;
+            } catch (e) {
+              console.warn('[DEBUG] Failed to parse JSON from markdown block:', e);
+            }
+          }
+          
+          // Strategy 2: Find first { and match braces
+          const firstBrace = text.indexOf('{');
+          if (firstBrace !== -1) {
+            let braceCount = 0;
+            for (let i = firstBrace; i < text.length; i++) {
+              if (text[i] === '{') braceCount++;
+              if (text[i] === '}') {
+                braceCount--;
+                if (braceCount === 0) {
+                  const jsonStr = text.substring(firstBrace, i + 1).trim();
+                  console.log('[DEBUG] Found JSON object via brace matching');
+                  try {
+                    const parsed = JSON.parse(jsonStr);
+                    console.log('[DEBUG] Successfully parsed brace-matched JSON');
+                    return parsed;
+                  } catch (e) {
+                    console.warn('[DEBUG] Failed to parse brace-matched JSON:', e);
+                  }
+                }
               }
             }
           }
-        }
-        
-        // Fallback: try array extraction
-        const firstBracket = cleaned.indexOf('[');
-        if (firstBracket !== -1) {
-          let bracketCount = 0;
-          for (let i = firstBracket; i < cleaned.length; i++) {
-            if (cleaned[i] === '[') bracketCount++;
-            if (cleaned[i] === ']') {
-              bracketCount--;
-              if (bracketCount === 0) {
-                return cleaned.substring(firstBracket, i + 1);
-              }
-            }
+          
+          // Strategy 3: Try direct JSON parse (trimmed)
+          const trimmed = text.trim();
+          try {
+            const parsed = JSON.parse(trimmed);
+            console.log('[DEBUG] Successfully parsed direct JSON');
+            return parsed;
+          } catch (e) {
+            console.warn('[DEBUG] Direct JSON parse failed:', e);
           }
+          
+          // Strategy 4: Try removing common prefixes
+          const cleanedText = trimmed
+            .replace(/^(here's?|the json|```)/gi, '')
+            .replace(/^[\s\n]*{/g, '{')
+            .trim();
+          
+          try {
+            const parsed = JSON.parse(cleanedText);
+            console.log('[DEBUG] Successfully parsed cleaned JSON');
+            return parsed;
+          } catch (e) {
+            console.warn('[DEBUG] Cleaned JSON parse failed:', e);
+          }
+          
+          // All strategies failed
+          console.error('[ERROR] Raw response preview:', text.substring(0, 300));
+          throw new Error(`Unable to extract valid JSON from response. First 100 chars: ${text.substring(0, 100)}`);
+          
+        } catch (error) {
+          throw new Error(`Response parsing failed: ${error instanceof Error ? error.message : String(error)}`);
         }
-        
-        return text;
       };
       
       try {
-        // Parse Gemini API response
-        let responseText = response.text || 
-          (response.candidates?.[0]?.content?.parts?.[0]?.text) || 
-          (typeof response === 'string' ? response : '');
-        
-        if (!responseText) {
-          throw new Error('No text content in API response');
-        }
-        
-        console.log('[DEBUG] Raw response start:', responseText.substring(0, 150));
-        
-        // Extract JSON using helper
-        const jsonString = extractJSON(responseText);
-        console.log('[DEBUG] Extracted JSON:', jsonString.substring(0, 150));
-        
-        result = JSON.parse(jsonString);
+        result = parseGeminiResponse(response);
         
         // Validate response structure
         if (!result.threat_detection || !result.verification_recommendation) {
