@@ -129,7 +129,7 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
 
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-1.5-flash',
         contents: [{
           parts: [
             { inlineData: { mimeType: 'video/webm', data: segmentData } },
