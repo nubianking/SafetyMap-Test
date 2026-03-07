@@ -118,29 +118,55 @@ const AnonymousUploadPortal: React.FC = () => {
         contents: [{
           parts: [
             { inlineData: { mimeType: file.type, data: base64Data } },
-            { text: `Analyze this uploaded incident evidence and perform the following 6 tasks:
-              1. Detect visible threats (weapons, fire, violence, collisions).
-              2. Check for deepfake or manipulation signs (pixel artifacts, synthetic morphing).
-              3. Assess metadata consistency (weather/lighting consistency with visual landmarks).
-              4. Classify severity (LOW, MEDIUM, HIGH, CRITICAL).
-              5. Recommend verification status (VERIFIED, NEEDS REVIEW, SUSPICIOUS).
-              6. Intelligence Summary: Provide a high-level tactical summary of the event, its potential impact on the local grid, and any identified behavioral patterns.` 
+            { text: `You are a forensic audit AI. Analyze the provided media and return ONLY a JSON object.
+DO NOT include markdown formatting, explanations, code blocks, or conversational text.
+Your entire response must be valid, parseable JSON.
+
+Required JSON structure:
+{
+  "threat_detection": {
+    "visible_threats": string[],
+    "confidence": number,
+    "timestamp_occurrences": string[]
+  },
+  "manipulation_audit": {
+    "deepfake_probability": number,
+    "manipulation_detected": boolean,
+    "artifact_notes": string
+  },
+  "metadata_consistency": {
+    "is_consistent": boolean,
+    "lighting_weather_match": string,
+    "landmark_verification": string[]
+  },
+  "severity": {
+    "level": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
+    "justification": string
+  },
+  "verification_recommendation": {
+    "status": "VERIFIED" | "NEEDS_REVIEW" | "SUSPICIOUS",
+    "trust_score": number,
+    "summary": string
+  },
+  "intelligence_summary": string
+}
+
+Analyze the following evidence and return ONLY the JSON object:` 
             }
           ]
         }],
-        systemInstruction: `You are a High-Fidelity Safety Incident Forensic AI. You provide machine-readable forensic audits for urban security grids.
+        systemInstruction: `You are a High-Fidelity Safety Incident Forensic AI specializing in machine-readable forensic audits.
         
-        CRITICAL: Return ONLY valid JSON. No text before, after, or within the JSON. No markdown code blocks. No explanations.
+        CRITICAL REQUIREMENTS:
+        1. Return ONLY valid JSON - nothing else
+        2. No markdown formatting, code blocks, or explanations
+        3. No conversational text before or after JSON
+        4. Your response must start with { and end with }
+        5. All strings must be properly escaped
+        6. All numbers must be valid JSON numbers (0-1 for probabilities/confidence)
+        7. All required fields must be present
         
-        ANALYTICS PROTOCOL:
-        - Task 1: Visible Threat Detection.
-        - Task 2: Manipulation Audit (Forensics).
-        - Task 3: Metadata/Context Consistency.
-        - Task 4: Severity Classification.
-        - Task 5: Verification Recommendation.
-        - Task 6: Intelligence Summary.
-
-        Output must be a single valid JSON object starting with { and ending with }. No other text.`
+        Be clinically objective and forensically accurate.`
       });
 
       let result;

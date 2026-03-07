@@ -192,28 +192,60 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
         contents: [{
           parts: [
             { inlineData: { mimeType: 'video/webm', data: segmentData } },
-            { text: `Sentry Behavior & Anomaly Audit:
-              1. Visual: Detect specific threats (weapons, collisions) and TRACK their status over the 3s.
-              2. Anomalies: Identify erratic patterns (aggressive driving, unusual loitering, sudden crowd movement).
-              3. Acoustic: Match audio spikes to visual events.
-              4. Trend: Determine if the situation is ESCALATING, STABILIZING, or STATIC.
-              5. Predictive: Based on the current trajectory, what is the most likely outcome in the next 15-30 seconds?
-              6. Risk Vectors: Identify specific directional risks (e.g., "Northbound Traffic Surge", "Pedestrian Cluster at Intersection").` 
+            { text: `You are a predictive tactical forensic AI. Analyze the provided media segment and return ONLY a JSON object.
+DO NOT include markdown formatting, explanations, code blocks, or conversational text.
+Your entire response must be valid, parseable JSON.
+
+Required JSON structure:
+{
+  "detected_hazards": string[],
+  "anomalies": [
+    {
+      "type": string,
+      "description": string,
+      "confidence": number
+    }
+  ],
+  "acoustic_events": string[],
+  "temporal_trend": "ESCALATING" | "STABILIZING" | "STATIC" | "FLUCTUATING",
+  "predictive_risk": {
+    "probability": number,
+    "timeframe": string,
+    "projected_outcome": string
+  },
+  "risk_vectors": [
+    {
+      "type": string,
+      "magnitude": number
+    }
+  ],
+  "crowd_panic": number,
+  "severity": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
+  "emergency_recommendation": string,
+  "justification": string,
+  "confidence": number,
+  "forensics": {
+    "deepfake_probability": number,
+    "authenticity_assessment": string
+  }
+}
+
+Analyze the following evidence and return ONLY the JSON object:` 
             }
           ]
         }],
-        systemInstruction: `You are a Predictive Tactical Forensic AI. You analyze behavioral patterns in urban mobility feeds.
+        systemInstruction: `You are a Predictive Tactical Forensic AI specializing in urban mobility behavioral analysis.
         
-        CRITICAL: Return ONLY valid JSON. No text before, after, or within the JSON. No markdown code blocks. No explanations.
+        CRITICAL REQUIREMENTS:
+        1. Return ONLY valid JSON - nothing else
+        2. No markdown formatting, code blocks, or explanations
+        3. No conversational text before or after JSON
+        4. Your response must start with { and end with }
+        5. All strings must be properly escaped
+        6. All numbers must be valid JSON numbers (0-1 for probabilities/confidence)
+        7. All required fields must be present
         
-        OUTPUT PROTOCOL:
-        - Detect hazards and unique ANOMALIES.
-        - Track TEMPORAL TRENDS.
-        - PREDICTIVE RISK: Probability of escalation and projected outcome.
-        - RISK VECTORS: Directional or thematic risk components.
-        - SEVERITY: LOW, MEDIUM, HIGH, CRITICAL.
-        
-        Output must be a single valid JSON object starting with { and ending with }. No other text.`
+        Analyze behavioral patterns forensically and provide structured, predictive risk assessment.`
               justification: { type: Type.STRING },
               confidence: { type: Type.NUMBER },
               forensics: {
