@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../contexts/AppContext';
 import { ICONS } from '../constants';
-import { GoogleGenAI, Type } from "@google/genai";
+
 
 type OnboardingStep = 'WELCOME' | 'PERSONAL' | 'IDENTITY' | 'LOCATION' | 'DEVICE' | 'TRAINING' | 'PAYMENT' | 'PROCESSING' | 'STATUS';
 
