@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../contexts/AppContext';
 import { ICONS } from '../constants';
 import { GoogleGenAI, Type } from "@google/genai";
-import { LiveAlert, VerificationScore } from '../types';
 
 const AnonymousUploadPortal: React.FC = () => {
   const navigate = useNavigate();
@@ -55,66 +54,9 @@ const AnonymousUploadPortal: React.FC = () => {
       const base64Data = dataUrl.split(',')[1];
       setUploadProgress(55);
 
-      // Step 2: Multi-Modal AI Forensic Audit
+      // Step 2: Multi-Modal AI Forensic Audit using new @google/genai SDK
       const ai = new GoogleGenAI({ apiKey });
-      const model = ai.getGenerativeModel({
-        model: 'gemini-3.1-flash-lite-preview',
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              threat_detection: {
-                type: Type.OBJECT,
-                properties: {
-                  visible_threats: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  confidence: { type: Type.NUMBER },
-                  timestamp_occurrences: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ["visible_threats", "confidence", "timestamp_occurrences"]
-              },
-              manipulation_audit: {
-                type: Type.OBJECT,
-                properties: {
-                  deepfake_probability: { type: Type.NUMBER },
-                  manipulation_detected: { type: Type.BOOLEAN },
-                  artifact_notes: { type: Type.STRING }
-                },
-                required: ["deepfake_probability", "manipulation_detected", "artifact_notes"]
-              },
-              metadata_consistency: {
-                type: Type.OBJECT,
-                properties: {
-                  is_consistent: { type: Type.BOOLEAN },
-                  lighting_weather_match: { type: Type.STRING },
-                  landmark_verification: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ["is_consistent", "lighting_weather_match", "landmark_verification"]
-              },
-              severity: {
-                type: Type.OBJECT,
-                properties: {
-                  level: { type: Type.STRING, description: "LOW, MEDIUM, HIGH, or CRITICAL" },
-                  justification: { type: Type.STRING }
-                },
-                required: ["level", "justification"]
-              },
-              verification_recommendation: {
-                type: Type.OBJECT,
-                properties: {
-                  status: { type: Type.STRING, description: "VERIFIED, NEEDS REVIEW, or SUSPICIOUS" },
-                  trust_score: { type: Type.NUMBER },
-                  summary: { type: Type.STRING }
-                },
-                required: ["status", "trust_score", "summary"]
-              },
-              intelligence_summary: { type: Type.STRING }
-            },
-            required: ["threat_detection", "manipulation_audit", "metadata_consistency", "severity", "verification_recommendation", "intelligence_summary"]
-          }
-        }
-      });
+
       // Robust response sanitization function
       const parseGeminiResponse = (response: any): any => {
         try {
@@ -209,7 +151,8 @@ const AnonymousUploadPortal: React.FC = () => {
             await new Promise(r => setTimeout(r, 1000 * attempt));
           }
 
-          const response = await model.generateContent({
+          const response = await ai.models.generateContent({
+            model: 'gemini-3.1-flash-lite-preview',
             contents: [{
               parts: [
                 { inlineData: { mimeType: file.type, data: base64Data } },
@@ -250,18 +193,73 @@ Analyze the following evidence and return ONLY the JSON object:`
                 }
               ]
             }],
-            systemInstruction: `You are a High-Fidelity Safety Incident Forensic AI specializing in machine-readable forensic audits.
-            
-            CRITICAL REQUIREMENTS:
-            1. Return ONLY valid JSON - nothing else
-            2. No markdown formatting, code blocks, or explanations
-            3. No conversational text before or after JSON
-            4. Your response must start with { and end with }
-            5. All strings must be properly escaped
-            6. All numbers must be valid JSON numbers (0-1 for probabilities/confidence)
-            7. All required fields must be present
-            
-            Be clinically objective and forensically accurate.`
+            config: {
+              temperature: 0.1,
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  threat_detection: {
+                    type: Type.OBJECT,
+                    properties: {
+                      visible_threats: { type: Type.ARRAY, items: { type: Type.STRING } },
+                      confidence: { type: Type.NUMBER },
+                      timestamp_occurrences: { type: Type.ARRAY, items: { type: Type.STRING } }
+                    },
+                    required: ["visible_threats", "confidence", "timestamp_occurrences"]
+                  },
+                  manipulation_audit: {
+                    type: Type.OBJECT,
+                    properties: {
+                      deepfake_probability: { type: Type.NUMBER },
+                      manipulation_detected: { type: Type.BOOLEAN },
+                      artifact_notes: { type: Type.STRING }
+                    },
+                    required: ["deepfake_probability", "manipulation_detected", "artifact_notes"]
+                  },
+                  metadata_consistency: {
+                    type: Type.OBJECT,
+                    properties: {
+                      is_consistent: { type: Type.BOOLEAN },
+                      lighting_weather_match: { type: Type.STRING },
+                      landmark_verification: { type: Type.ARRAY, items: { type: Type.STRING } }
+                    },
+                    required: ["is_consistent", "lighting_weather_match", "landmark_verification"]
+                  },
+                  severity: {
+                    type: Type.OBJECT,
+                    properties: {
+                      level: { type: Type.STRING },
+                      justification: { type: Type.STRING }
+                    },
+                    required: ["level", "justification"]
+                  },
+                  verification_recommendation: {
+                    type: Type.OBJECT,
+                    properties: {
+                      status: { type: Type.STRING },
+                      trust_score: { type: Type.NUMBER },
+                      summary: { type: Type.STRING }
+                    },
+                    required: ["status", "trust_score", "summary"]
+                  },
+                  intelligence_summary: { type: Type.STRING }
+                },
+                required: ["threat_detection", "manipulation_audit", "metadata_consistency", "severity", "verification_recommendation", "intelligence_summary"]
+              },
+              systemInstruction: `You are a High-Fidelity Safety Incident Forensic AI specializing in machine-readable forensic audits.
+              
+              CRITICAL REQUIREMENTS:
+              1. Return ONLY valid JSON - nothing else
+              2. No markdown formatting, code blocks, or explanations
+              3. No conversational text before or after JSON
+              4. Your response must start with { and end with }
+              5. All strings must be properly escaped
+              6. All numbers must be valid JSON numbers (0-1 for probabilities/confidence)
+              7. All required fields must be present
+              
+              Be clinically objective and forensically accurate.`
+            }
           });
 
           result = parseGeminiResponse(response);

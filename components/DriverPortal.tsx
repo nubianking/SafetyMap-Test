@@ -4,12 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../contexts/AppContext';
 import { ICONS } from '../constants';
 import { GoogleGenAI, Type } from "@google/genai";
-import { LiveAlert, ForensicMetadata, TechnicalTelemetry, VerificationScore, AudioEvent } from '../types';
-import { calculateRGTWeight } from '../services/RewardEngine';
 import { SentryTelemetry } from '../types/rewards';
 import { useSentryRewards } from '../hooks/useSentryRewards';
 import { OracleDashboard } from './mapper/OracleDashboard';
-import { ReportButton } from './mapper/ReportButton';
 import { UserProfileData } from './profile/MapperProfile';
 import { mapsService } from '../services/mapsService';
 import { IncidentUploadModal } from './mapper/IncidentUploadModal';
@@ -50,75 +47,14 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Hoist Gemini API client & model — created once, reused on every analysis cycle
-  const geminiModel = useMemo(() => {
+  // Hoist Gemini API client — created once, reused on every analysis cycle
+  const geminiClient = useMemo(() => {
     const apiKey = process.env.API_KEY;
     if (!apiKey || apiKey.includes('your_') || apiKey === 'undefined') {
       console.error('[GEMINI] API key is not configured. Add VITE_GEMINI_API_KEY to your .env file.');
       return null;
     }
-    const ai = new GoogleGenAI({ apiKey });
-    return ai.getGenerativeModel({
-      model: 'gemini-3.1-flash-lite-preview',
-      generationConfig: {
-        temperature: 0.1,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            detected_hazards: { type: Type.ARRAY, items: { type: Type.STRING } },
-            anomalies: { 
-              type: Type.ARRAY, 
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  type: { type: Type.STRING },
-                  description: { type: Type.STRING },
-                  confidence: { type: Type.NUMBER }
-                },
-                required: ["type", "description", "confidence"]
-              }
-            },
-            acoustic_events: { type: Type.ARRAY, items: { type: Type.STRING } },
-            temporal_trend: { type: Type.STRING, description: "ESCALATING, STABILIZING, STATIC, or FLUCTUATING" },
-            predictive_risk: {
-              type: Type.OBJECT,
-              properties: {
-                probability: { type: Type.NUMBER },
-                timeframe: { type: Type.STRING },
-                projected_outcome: { type: Type.STRING }
-              },
-              required: ["probability", "timeframe", "projected_outcome"]
-            },
-            risk_vectors: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  type: { type: Type.STRING },
-                  magnitude: { type: Type.NUMBER }
-                },
-                required: ["type", "magnitude"]
-              }
-            },
-            crowd_panic: { type: Type.NUMBER },
-            severity: { type: Type.STRING },
-            emergency_recommendation: { type: Type.STRING },
-            justification: { type: Type.STRING },
-            confidence: { type: Type.NUMBER },
-            forensics: {
-              type: Type.OBJECT,
-              properties: {
-                deepfake_probability: { type: Type.NUMBER },
-                authenticity_assessment: { type: Type.STRING }
-              },
-              required: ["deepfake_probability", "authenticity_assessment"]
-            }
-          },
-          required: ["detected_hazards", "forensics", "severity"]
-        }
-      }
-    });
+    return new GoogleGenAI({ apiKey });
   }, []);
 
   useEffect(() => {
@@ -198,10 +134,9 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
       const segmentData = await recordSegment(streamRef.current, 3000);
       const mediaHash = `sha256-${Math.random().toString(36).substr(2, 32)}`;
 
-      if (!geminiModel) {
+      if (!geminiClient) {
         throw new Error('Gemini API key is not configured. Please add a valid VITE_GEMINI_API_KEY to your .env file. Get one at https://aistudio.google.com/app/apikey');
       }
-      const model = geminiModel;
       // Robust response sanitization function
       const parseGeminiResponse = (response: any): any => {
         try {
@@ -296,7 +231,8 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
             await new Promise(r => setTimeout(r, 1000 * attempt));
           }
 
-          const response = await model.generateContent({
+          const response = await geminiClient.models.generateContent({
+            model: 'gemini-3.1-flash-lite-preview',
             contents: [{
               parts: [
                 { inlineData: { mimeType: 'video/webm', data: segmentData } },
@@ -342,18 +278,76 @@ Analyze the following evidence and return ONLY the JSON object:`
                 }
               ]
             }],
-            systemInstruction: `You are a Predictive Tactical Forensic AI specializing in urban mobility behavioral analysis.
-            
-            CRITICAL REQUIREMENTS:
-            1. Return ONLY valid JSON - nothing else
-            2. No markdown formatting, code blocks, or explanations
-            3. No conversational text before or after JSON
-            4. Your response must start with { and end with }
-            5. All strings must be properly escaped
-            6. All numbers must be valid JSON numbers (0-1 for probabilities/confidence)
-            7. All required fields must be present
-            
-            Analyze behavioral patterns forensically and provide structured, predictive risk assessment.`
+            config: {
+              temperature: 0.1,
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  detected_hazards: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  anomalies: { 
+                    type: Type.ARRAY, 
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        type: { type: Type.STRING },
+                        description: { type: Type.STRING },
+                        confidence: { type: Type.NUMBER }
+                      },
+                      required: ["type", "description", "confidence"]
+                    }
+                  },
+                  acoustic_events: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  temporal_trend: { type: Type.STRING },
+                  predictive_risk: {
+                    type: Type.OBJECT,
+                    properties: {
+                      probability: { type: Type.NUMBER },
+                      timeframe: { type: Type.STRING },
+                      projected_outcome: { type: Type.STRING }
+                    },
+                    required: ["probability", "timeframe", "projected_outcome"]
+                  },
+                  risk_vectors: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        type: { type: Type.STRING },
+                        magnitude: { type: Type.NUMBER }
+                      },
+                      required: ["type", "magnitude"]
+                    }
+                  },
+                  crowd_panic: { type: Type.NUMBER },
+                  severity: { type: Type.STRING },
+                  emergency_recommendation: { type: Type.STRING },
+                  justification: { type: Type.STRING },
+                  confidence: { type: Type.NUMBER },
+                  forensics: {
+                    type: Type.OBJECT,
+                    properties: {
+                      deepfake_probability: { type: Type.NUMBER },
+                      authenticity_assessment: { type: Type.STRING }
+                    },
+                    required: ["deepfake_probability", "authenticity_assessment"]
+                  }
+                },
+                required: ["detected_hazards", "forensics", "severity"]
+              },
+              systemInstruction: `You are a Predictive Tactical Forensic AI specializing in urban mobility behavioral analysis.
+              
+              CRITICAL REQUIREMENTS:
+              1. Return ONLY valid JSON - nothing else
+              2. No markdown formatting, code blocks, or explanations
+              3. No conversational text before or after JSON
+              4. Your response must start with { and end with }
+              5. All strings must be properly escaped
+              6. All numbers must be valid JSON numbers (0-1 for probabilities/confidence)
+              7. All required fields must be present
+              
+              Analyze behavioral patterns forensically and provide structured, predictive risk assessment.`
+            }
           });
 
           result = parseGeminiResponse(response);
