@@ -152,11 +152,24 @@ const AnonymousUploadPortal: React.FC = () => {
           throw new Error('No text content in API response');
         }
         
-        // Extract JSON from response if it contains non-JSON text
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        console.log('[DEBUG] Raw response:', responseText.substring(0, 100));
+        
+        // Remove markdown code blocks if present
+        responseText = responseText.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '');
+        
+        // Extract JSON from response - find the first valid JSON object
+        let jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          responseText = jsonMatch[0];
+          responseText = jsonMatch[0].trim();
+        } else {
+          // Try to find JSON array as fallback
+          jsonMatch = responseText.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            responseText = jsonMatch[0].trim();
+          }
         }
+        
+        console.log('[DEBUG] Extracted response:', responseText.substring(0, 100));
         
         result = JSON.parse(responseText);
         
