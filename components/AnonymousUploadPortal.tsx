@@ -58,7 +58,7 @@ const AnonymousUploadPortal: React.FC = () => {
       // Step 2: Multi-Modal AI Forensic Audit
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-3.1-flash-lite-preview',
         contents: [{
           parts: [
             { inlineData: { mimeType: file.type, data: base64Data } },

@@ -24,7 +24,7 @@ A decentralized situational awareness network that transforms citizens and drive
 
 ## 🌟 Overview
 
-**Safety Map Africa** is a high-fidelity, decentralized situational awareness network designed to enhance urban security and mobility through collective intelligence. It transforms ordinary citizens and drivers into "Sentry Nodes" that contribute real-time visual and acoustic data to a unified safety grid. By leveraging state-of-the-art multi-modal AI (Gemini 3), the platform identifies hazards, predicts risk escalations, and verifies the authenticity of incident reports, creating a transparent and incentivized safety ecosystem.
+**Safety Map Africa** is a high-fidelity, decentralized situational awareness network designed to enhance urban security and mobility through collective intelligence. It transforms ordinary citizens and drivers into "Sentry Nodes" that contribute real-time visual and acoustic data to a unified safety grid. By leveraging state-of-the-art multi-modal AI (Gemini 3.1 Flash Lite Preview), the platform identifies hazards, predicts risk escalations, and verifies the authenticity of incident reports, creating a transparent and incentivized safety ecosystem.
 
 ## 🎯 Mission
 
@@ -101,7 +101,7 @@ Analytics       Intelligence   Places API       Real-time updates
 
 - **Frontend Framework:** React 19, TypeScript, Vite
 - **Styling:** Tailwind CSS (Custom high-tech/tactical UI design)
-- **AI Integration:** `@google/genai` (Gemini 3 Flash Preview for multi-modal video/audio analysis)
+- **AI Integration:** `@google/genai` (Gemini 3.1 Flash Lite Preview for multi-modal video/audio analysis)
 - **Mapping:** Google Maps JavaScript API with custom styling, traffic layers, and heatmap visualization
 - **Icons:** Lucide React
 - **Backend:** Node.js, Express, Multer (for file uploads)
