@@ -67,13 +67,31 @@ Our mission is to democratize urban safety data. In many rapidly growing urban e
 
 ## 🏗️ System Architecture
 
-```text
-Mapper App ←Backend ←→ Google Maps APIs ←→ Driver App
-     ↓              ↓                ↓              ↓
-Live tracking   Route logic    Geocoding/       Navigation
-ETA display     Fare calc      Directions/      Driver location
-Heatmaps        Predictive     Distance Matrix  Traffic layers
-Analytics       Intelligence   Places API       Real-time updates
+```mermaid
+graph TD
+    subgraph Client Layer
+        MA["Mapper App"]
+        DA["Driver App"]
+    end
+
+    subgraph Backend
+        BE["Node.js / Express Server"]
+        AI["Gemini AI Engine"]
+    end
+
+    subgraph Google Maps Platform
+        GEO["Geocoding API"]
+        DIR["Directions API"]
+        DM["Distance Matrix API"]
+        PL["Places API"]
+        TR["Traffic API"]
+        VIS["Visualization API"]
+    end
+
+    MA -- "Live Tracking / ETA / Heatmaps" --> BE
+    DA -- "Navigation / Location Updates" --> BE
+    BE <--> GEO & DIR & DM & PL & TR & VIS
+    BE --> AI
 ```
 
 ### Google Maps API Integration
@@ -126,8 +144,8 @@ This project heavily utilizes the **Gemini API** for complex, multi-modal reason
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
-   cd safety-map-africa-grid-node-v2.5
+   git clone https://github.com/nubianking/SafetyMap-Test.git
+   cd SafetyMap-Test
    ```
 
 2. **Install dependencies:**
@@ -191,7 +209,7 @@ Every upload attaches forensic metadata, including:
 - `location` (lat/lng)
 - Device signals (heading, speed, etc.)
 
-## � Backend Mapper API
+## 🔌 Backend Mapper API
 
 To support multiple mapper profiles and onboarding, the server exposes the following endpoints:
 
@@ -201,17 +219,17 @@ To support multiple mapper profiles and onboarding, the server exposes the follo
 
 > **Note:** These endpoints currently store data in memory; replace with a persistent database in production.
 
-## �🔒 Environment Variables
+## 🔒 Environment Variables
 
 The application requires the following environment variables:
 
 - `VITE_GEMINI_API_KEY`: Your Google Gemini API key for running the forensic and predictive AI models
 - `VITE_GOOGLE_MAPS_API_KEY`: Your Google Maps Platform API key for geocoding, places, directions, and distance matrix
 
-## � Contributors
+## 👥 Contributors
 
 * **Otemade Balogun** – balogun.otemade@gmail.com
 
-## �📜 License
+## 📜 License
 
 Proprietary / Confidential.
