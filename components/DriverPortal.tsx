@@ -145,13 +145,16 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
         }],
         systemInstruction: `You are a Predictive Tactical Forensic AI. You analyze behavioral patterns in urban mobility feeds.
         
+        CRITICAL: Return ONLY valid JSON. No text before, after, or within the JSON. No markdown code blocks. No explanations.
+        
         OUTPUT PROTOCOL:
         - Detect hazards and unique ANOMALIES.
         - Track TEMPORAL TRENDS.
         - PREDICTIVE RISK: Probability of escalation and projected outcome.
         - RISK VECTORS: Directional or thematic risk components.
         - SEVERITY: LOW, MEDIUM, HIGH, CRITICAL.
-        - Return ONLY structured JSON.`,
+        
+        Output must be a single valid JSON object starting with { and ending with }. No other text.`,
         generationConfig: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -214,12 +217,18 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
       let result;
       try {
         // Parse Gemini API response - handle multiple possible response structures
-        const responseText = response.text || 
+        let responseText = response.text || 
           (response.candidates?.[0]?.content?.parts?.[0]?.text) || 
           (typeof response === 'string' ? response : '');
         
         if (!responseText) {
           throw new Error('No text content in API response');
+        }
+        
+        // Extract JSON from response if it contains non-JSON text
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          responseText = jsonMatch[0];
         }
         
         result = JSON.parse(responseText);

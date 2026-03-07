@@ -74,6 +74,8 @@ const AnonymousUploadPortal: React.FC = () => {
         }],
         systemInstruction: `You are a High-Fidelity Safety Incident Forensic AI. You provide machine-readable forensic audits for urban security grids.
         
+        CRITICAL: Return ONLY valid JSON. No text before, after, or within the JSON. No markdown code blocks. No explanations.
+        
         ANALYTICS PROTOCOL:
         - Task 1: Visible Threat Detection.
         - Task 2: Manipulation Audit (Forensics).
@@ -82,7 +84,7 @@ const AnonymousUploadPortal: React.FC = () => {
         - Task 5: Verification Recommendation.
         - Task 6: Intelligence Summary.
 
-        Return ONLY valid JSON. Be clinically objective.`,
+        Output must be a single valid JSON object starting with { and ending with }. No other text.`,
         generationConfig: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -142,12 +144,18 @@ const AnonymousUploadPortal: React.FC = () => {
       let result;
       try {
         // Parse Gemini API response - handle multiple possible response structures
-        const responseText = response.text || 
+        let responseText = response.text || 
           (response.candidates?.[0]?.content?.parts?.[0]?.text) || 
           (typeof response === 'string' ? response : '');
         
         if (!responseText) {
           throw new Error('No text content in API response');
+        }
+        
+        // Extract JSON from response if it contains non-JSON text
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          responseText = jsonMatch[0];
         }
         
         result = JSON.parse(responseText);
