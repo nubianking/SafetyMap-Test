@@ -215,8 +215,47 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
       });
 
       let result;
+      // Helper function to extract JSON from text
+      const extractJSON = (text: string): string => {
+        // Try removing markdown code blocks first
+        let cleaned = text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '');
+        
+        // Try to find JSON object starting from first {
+        const firstBrace = cleaned.indexOf('{');
+        if (firstBrace !== -1) {
+          // Find matching closing brace
+          let braceCount = 0;
+          for (let i = firstBrace; i < cleaned.length; i++) {
+            if (cleaned[i] === '{') braceCount++;
+            if (cleaned[i] === '}') {
+              braceCount--;
+              if (braceCount === 0) {
+                return cleaned.substring(firstBrace, i + 1);
+              }
+            }
+          }
+        }
+        
+        // Fallback: try array extraction
+        const firstBracket = cleaned.indexOf('[');
+        if (firstBracket !== -1) {
+          let bracketCount = 0;
+          for (let i = firstBracket; i < cleaned.length; i++) {
+            if (cleaned[i] === '[') bracketCount++;
+            if (cleaned[i] === ']') {
+              bracketCount--;
+              if (bracketCount === 0) {
+                return cleaned.substring(firstBracket, i + 1);
+              }
+            }
+          }
+        }
+        
+        return text;
+      };
+      
       try {
-        // Parse Gemini API response - handle multiple possible response structures
+        // Parse Gemini API response
         let responseText = response.text || 
           (response.candidates?.[0]?.content?.parts?.[0]?.text) || 
           (typeof response === 'string' ? response : '');
@@ -225,26 +264,13 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
           throw new Error('No text content in API response');
         }
         
-        console.log('[DEBUG] Raw response:', responseText.substring(0, 100));
+        console.log('[DEBUG] Raw response start:', responseText.substring(0, 150));
         
-        // Remove markdown code blocks if present
-        responseText = responseText.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '');
+        // Extract JSON using helper
+        const jsonString = extractJSON(responseText);
+        console.log('[DEBUG] Extracted JSON:', jsonString.substring(0, 150));
         
-        // Extract JSON from response - find the first valid JSON object
-        let jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          responseText = jsonMatch[0].trim();
-        } else {
-          // Try to find JSON array as fallback
-          jsonMatch = responseText.match(/\[[\s\S]*\]/);
-          if (jsonMatch) {
-            responseText = jsonMatch[0].trim();
-          }
-        }
-        
-        console.log('[DEBUG] Extracted response:', responseText.substring(0, 100));
-        
-        result = JSON.parse(responseText);
+        result = JSON.parse(jsonString);
         
         // Validate response structure
         if (!result.detected_hazards || !result.forensics) {
