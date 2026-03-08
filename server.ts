@@ -192,16 +192,16 @@ async function startServer() {
 
   let mappers: MapperProfile[] = [];
 
-  // seed admin/test mapper (passkey is hashed at startup)
-  const seedAdminPasskey = await bcrypt.hash('Test2026', SALT_ROUNDS);
+  // seed development credentials for sentry testing (passkeys are hashed at startup)
+  const seedAdminPasskey = await bcrypt.hash('dev_admin_passkey_2024', SALT_ROUNDS);
   mappers.push({
     id: 'mapper_admin',
-    alias: 'Oba',
+    alias: 'admin',
     passkey: seedAdminPasskey,
-    fullName: 'Oba Admin',
+    fullName: 'Admin User',
     dob: '1990-01-01',
     phone: '+2340000000000',
-    email: 'oba@example.com',
+    email: 'admin@safetymap.dev',
     nationality: 'Nigerian',
     mobility: 'Private Vehicle',
     zone: 'Lagos Mainland',
@@ -211,6 +211,27 @@ async function startServer() {
     score: 100,
     rank: 'Apex Elite',
     balance: 100000,
+    history: []
+  });
+
+  const seedMapperPasskey = await bcrypt.hash('test_passkey_123', SALT_ROUNDS);
+  mappers.push({
+    id: 'mapper_test',
+    alias: 'test_mapper',
+    passkey: seedMapperPasskey,
+    fullName: 'Test Mapper',
+    dob: '1995-06-15',
+    phone: '+2340000000001',
+    email: 'mapper@safetymap.dev',
+    nationality: 'Nigerian',
+    mobility: 'Motorcycle',
+    zone: 'Lagos Island',
+    bankName: 'XYZ Bank',
+    accountNumber: '0987654321',
+    trustScore: 50,
+    score: 0,
+    rank: 'Watcher',
+    balance: 0,
     history: []
   });
 
