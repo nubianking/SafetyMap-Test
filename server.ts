@@ -334,6 +334,40 @@ async function startServer() {
       }
       const { alias, passkey } = parsed.data;
 
+      // 🔑 DEV ONLY: Environment-variable admin check
+      const adminAlias = process.env.ADMIN_ALIAS;
+      const adminPasskey = process.env.ADMIN_PASSKEY;
+      if (adminAlias && adminPasskey && alias === adminAlias && passkey === adminPasskey) {
+        const token = jwt.sign(
+          {
+            mapperId: 'admin_001',
+            alias: 'admin',
+            role: 'admin',
+            permissions: ['all', 'users', 'audit', 'system']
+          },
+          JWT_SECRET,
+          { expiresIn: JWT_EXPIRES_IN }
+        );
+
+        authLogger.info('Admin login successful', { alias, ip: req.ip, role: 'admin' });
+
+        return res.json(createApiResponse(true, {
+          token,
+          profile: {
+            id: 'admin_001',
+            alias: 'admin',
+            fullName: 'System Administrator',
+            role: 'admin',
+            isAdmin: true,
+            trustScore: 100,
+            score: 100,
+            rank: 'System',
+            balance: 0,
+            history: []
+          }
+        }));
+      }
+
       const found = mappers.find(m => m.alias === alias || m.email === alias);
       if (!found) {
         // Timing attack prevention: still run bcrypt to match response time
