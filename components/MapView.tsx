@@ -170,7 +170,7 @@ const MapView: React.FC<MapViewProps> = ({ liveAlerts = [] }) => {
         const destination = `${activeDriver.destination.lat},${activeDriver.destination.lng}`;
         
         // Fetch Distance Matrix for ETA and Distance
-        const distanceData = await mapsService.getDistanceMatrix(origin, destination);
+        const distanceData = await mapsService.getDistanceMatrix({ origins: origin, destinations: destination });
         if (distanceData.rows?.[0]?.elements?.[0]?.status === 'OK') {
           const element = distanceData.rows[0].elements[0];
           const distanceValue = element.distance.value; // in meters
@@ -186,7 +186,7 @@ const MapView: React.FC<MapViewProps> = ({ liveAlerts = [] }) => {
         }
 
         // Fetch Directions for Polyline
-        const directionsData = await mapsService.getDirections(origin, destination);
+        const directionsData = await mapsService.getDirections({ origin, destination });
         if (directionsData.routes && directionsData.routes.length > 0) {
           const encodedPolyline = directionsData.routes[0].overview_polyline.points;
           
@@ -340,7 +340,7 @@ const MapView: React.FC<MapViewProps> = ({ liveAlerts = [] }) => {
       const fetchPlaces = async () => {
         try {
           // Add a location bias for Lagos, Nigeria
-          const data = await mapsService.getPlaces(searchQuery, '6.5244,3.3792', '50000');
+          const data = await mapsService.getPlaces({ input: searchQuery, location: '6.5244,3.3792', radius: '50000' });
           if (data.predictions) {
             setSearchResults(data.predictions);
           }
@@ -360,7 +360,7 @@ const MapView: React.FC<MapViewProps> = ({ liveAlerts = [] }) => {
     setSearchResults([]);
     try {
       // Geocode the selected place to get coordinates
-      const data = await mapsService.geocode(undefined, description);
+      const data = await mapsService.geocode({ address: description });
       if (data.results && data.results.length > 0) {
         const location = data.results[0].geometry.location;
         const map = mapRef.current;

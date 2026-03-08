@@ -69,7 +69,7 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
     if (!currentLocation) return;
     const geocode = async () => {
       try {
-        const data = await mapsService.geocode(`${currentLocation.lat},${currentLocation.lng}`);
+        const data = await mapsService.geocode({ latlng: `${currentLocation.lat},${currentLocation.lng}` });
         if (data.results && data.results.length > 0) {
           setCurrentAddress(data.results[0].formatted_address);
         }
