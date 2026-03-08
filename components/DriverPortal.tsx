@@ -234,6 +234,7 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
           const response = await geminiClient.models.generateContent({
             model: 'gemini-3.1-flash-lite-preview',
             contents: [{
+              role: "user",
               parts: [
                 { inlineData: { mimeType: 'video/webm', data: segmentData } },
                 { text: `You are a predictive tactical forensic AI. Analyze the provided media segment and return ONLY a JSON object.

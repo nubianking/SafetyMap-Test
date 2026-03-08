@@ -154,6 +154,7 @@ const AnonymousUploadPortal: React.FC = () => {
           const response = await ai.models.generateContent({
             model: 'gemini-3.1-flash-lite-preview',
             contents: [{
+              role: "user",
               parts: [
                 { inlineData: { mimeType: file.type, data: base64Data } },
                 { text: `You are a forensic audit AI. Analyze the provided media and return ONLY a JSON object.
