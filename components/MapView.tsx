@@ -80,33 +80,76 @@ const MapView: React.FC<MapViewProps> = ({ liveAlerts = [] }) => {
     };
   }, []);
 
-  // Driver movement simulation (updates every 15 seconds)
+  // Driver movement simulation — adaptive interval based on simulated speed
+  const driverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    const interval = setInterval(() => {
+    const EARTH_R_KM = 6371;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+
+    /** Haversine distance in km */
+    const hDist = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+      const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+      return EARTH_R_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+
+    /** Adaptive interval (mirrors useLocationTracker tiers) */
+    const getInterval = (speed: number) => {
+      if (speed > 60) return 5000;
+      if (speed > 30) return 10000;
+      if (speed > 5)  return 15000;
+      return 30000;
+    };
+
+    let lastTick = Date.now();
+
+    const tick = () => {
+      const now = Date.now();
+      const dtH = (now - lastTick) / 3_600_000; // hours
+      lastTick = now;
+
+      let maxSpeed = 0;
+
       setDrivers(prev => prev.map(driver => {
         const latDiff = driver.destination.lat - driver.location.lat;
         const lngDiff = driver.destination.lng - driver.location.lng;
-        
+
         // If reached destination, pick a new one
         if (Math.abs(latDiff) < 0.002 && Math.abs(lngDiff) < 0.002) {
-           return {
-             ...driver,
-             destination: { lat: 6.51 + Math.random() * 0.04, lng: 3.35 + Math.random() * 0.04 },
-             eta: Math.floor(Math.random() * 15) + 5
-           };
+          return {
+            ...driver,
+            destination: { lat: 6.51 + Math.random() * 0.04, lng: 3.35 + Math.random() * 0.04 },
+            eta: Math.floor(Math.random() * 15) + 5,
+          };
         }
+
+        const newLat = driver.location.lat + latDiff * 0.15;
+        const newLng = driver.location.lng + lngDiff * 0.15;
+
+        // Simulated speed from position delta
+        const distKm = hDist(driver.location.lat, driver.location.lng, newLat, newLng);
+        const speed = dtH > 0 ? distKm / dtH : 0;
+        if (speed > maxSpeed) maxSpeed = speed;
 
         return {
           ...driver,
-          location: {
-            lat: driver.location.lat + latDiff * 0.15,
-            lng: driver.location.lng + lngDiff * 0.15
-          },
-          eta: Math.max(1, Math.floor(driver.eta - 0.25))
+          location: { lat: newLat, lng: newLng },
+          eta: Math.max(1, Math.floor(driver.eta - 0.25)),
         };
       }));
-    }, 15000);
-    return () => clearInterval(interval);
+
+      // Schedule next tick using the fastest driver's speed tier
+      const nextInterval = getInterval(maxSpeed);
+      driverTimerRef.current = setTimeout(tick, nextInterval);
+    };
+
+    // Start with a default 15s tick
+    driverTimerRef.current = setTimeout(tick, 15000);
+
+    return () => {
+      if (driverTimerRef.current) clearTimeout(driverTimerRef.current);
+    };
   }, []);
 
   // Fetch Route and ETA when activeDriver changes

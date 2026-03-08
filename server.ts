@@ -170,6 +170,28 @@ async function startServer() {
   // In-memory stores (replace with database for production)
   let alerts: AlertData[] = [];
 
+  // --- Real-time tracking store (mapperId → last N locations) ---
+  interface StoredLocation {
+    lat: number;
+    lng: number;
+    speed: number;
+    heading: number | null;
+    accuracy: number;
+    timestamp: number;
+    mapperId: string;
+  }
+  const MAX_LOCATIONS_PER_MAPPER = 100;
+  const STALE_LOCATION_MS = 5 * 60 * 1000; // 5 minutes
+  const trackingStore = new Map<string, StoredLocation[]>();
+
+  /** Return adaptive interval (ms) recommendation for a given speed (km/h). */
+  const getRecommendedInterval = (speed: number): number => {
+    if (speed > 60) return 5000;
+    if (speed > 30) return 10000;
+    if (speed > 5)  return 15000;
+    return 30000;
+  };
+
   interface MapperProfile {
     id: string;
     alias: string;
@@ -442,6 +464,97 @@ async function startServer() {
     } catch (error) {
       logger.error('Alert creation failed', error);
       res.status(500).json(createApiResponse(false, undefined, 'Failed to create alert'));
+    }
+  });
+
+
+  // ============================================================================
+  // REAL-TIME TRACKING ENDPOINTS
+  // ============================================================================
+
+  const locationUpdateSchema = z.object({
+    locations: z.array(z.object({
+      lat: z.number().min(-90).max(90),
+      lng: z.number().min(-180).max(180),
+      speed: z.number().min(0).max(500),          // km/h
+      heading: z.number().nullable(),
+      accuracy: z.number().min(0),
+      timestamp: z.number(),
+    })).min(1).max(50),  // batched: 1..50 locations per request
+  });
+
+  // POST /api/tracking/location — receive batched location updates
+  app.post("/api/tracking/location", authenticate, (req: Request, res: Response) => {
+    try {
+      const parsed = locationUpdateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        const errors = parsed.error.errors.map(e => `${e.path.join('.')}: ${e.message}`);
+        return res.status(400).json(
+          createApiResponse(false, undefined, `Validation failed: ${errors.join('; ')}`)
+        );
+      }
+
+      const user = (req as AuthenticatedRequest).user;
+      const mapperId = user?.mapperId || 'unknown';
+      const { locations } = parsed.data;
+
+      // Store locations
+      const existing = trackingStore.get(mapperId) || [];
+      const stamped = locations.map(loc => ({ ...loc, mapperId }));
+      const merged = [...existing, ...stamped].slice(-MAX_LOCATIONS_PER_MAPPER);
+      trackingStore.set(mapperId, merged);
+
+      // Compute recommended interval from latest speed
+      const latestSpeed = locations[locations.length - 1].speed;
+      const recommendedInterval = getRecommendedInterval(latestSpeed);
+
+      logger.info('Tracking update received', {
+        mapperId,
+        count: locations.length,
+        latestSpeed,
+        recommendedInterval,
+      });
+
+      res.json(createApiResponse(true, {
+        stored: locations.length,
+        recommendedInterval,
+        latestSpeed,
+      }));
+    } catch (error) {
+      logger.error('Tracking update failed', error);
+      res.status(500).json(
+        createApiResponse(false, undefined, 'Failed to process tracking update')
+      );
+    }
+  });
+
+  // GET /api/tracking/locations — fetch latest position of all active mappers
+  app.get("/api/tracking/locations", authenticate, (req: Request, res: Response) => {
+    try {
+      const now = Date.now();
+      const activeMappers: Record<string, any> = {};
+
+      trackingStore.forEach((locations, mapperId) => {
+        if (locations.length === 0) return;
+        const latest = locations[locations.length - 1];
+        // Exclude stale entries
+        if (now - latest.timestamp <= STALE_LOCATION_MS) {
+          activeMappers[mapperId] = {
+            ...latest,
+            positionCount: locations.length,
+          };
+        }
+      });
+
+      res.json(createApiResponse(true, {
+        activeCount: Object.keys(activeMappers).length,
+        mappers: activeMappers,
+      }));
+    } catch (error) {
+      logger.error('Tracking fetch failed', error);
+      res.status(500).json(
+        createApiResponse(false, undefined, 'Failed to fetch tracking data')
+      );
     }
   });
 

@@ -6,6 +6,7 @@ import { ICONS } from '../constants';
 import { GoogleGenAI, Type } from "@google/genai";
 import { SentryTelemetry } from '../types/rewards';
 import { useSentryRewards } from '../hooks/useSentryRewards';
+import { useLocationTracker } from '../hooks/useLocationTracker';
 import { OracleDashboard } from './mapper/OracleDashboard';
 import { UserProfileData } from './profile/MapperProfile';
 import { mapsService } from '../services/mapsService';
@@ -27,8 +28,14 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
   const [detectionResults, setDetectionResults] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [nodeStatus, setNodeStatus] = useState<'IDLE' | 'CALIBRATING' | 'ACTIVE' | 'SECURE'>('IDLE');
-  const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
   const [currentAddress, setCurrentAddress] = useState<string | null>(null);
+
+  // --- Adaptive speed-based location tracking --------------------------------
+  const authToken = useMemo(() => {
+    try { return localStorage.getItem('authToken'); } catch { return null; }
+  }, []);
+  const tracker = useLocationTracker({ autoStart: true, authToken });
+  const currentLocation = tracker.currentLocation;
   const [deviceFingerprint] = useState(() => user ? `NODE-${user.alias.toUpperCase()}` : `NODE-X-${Math.random().toString(36).toUpperCase().substr(2, 6)}`);
   const [uploadModalType, setUploadModalType] = useState<'video' | 'audio' | 'image' | null>(null);
 
@@ -57,27 +64,23 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
     return new GoogleGenAI({ apiKey });
   }, []);
 
+  // Reverse-geocode whenever the tracked location changes
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(
-        async (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setCurrentLocation({ lat, lng });
-          
-          try {
-            const data = await mapsService.geocode(`${lat},${lng}`);
-            if (data.results && data.results.length > 0) {
-              setCurrentAddress(data.results[0].formatted_address);
-            }
-          } catch (error) {
-            console.error("Geocoding failed:", error);
-          }
-        },
-        null, { enableHighAccuracy: true }
-      );
-    }
-  }, []);
+    if (!currentLocation) return;
+    const geocode = async () => {
+      try {
+        const data = await mapsService.geocode(`${currentLocation.lat},${currentLocation.lng}`);
+        if (data.results && data.results.length > 0) {
+          setCurrentAddress(data.results[0].formatted_address);
+        }
+      } catch (error) {
+        console.error("Geocoding failed:", error);
+      }
+    };
+    // Throttle geocoding to avoid excess API calls
+    const timer = setTimeout(geocode, 2000);
+    return () => clearTimeout(timer);
+  }, [currentLocation?.lat, currentLocation?.lng]);
 
   const startStream = async () => {
     setNodeStatus('CALIBRATING');
@@ -562,8 +565,13 @@ Analyze the following evidence and return ONLY the JSON object:`
 
          {/* Location Overlay */}
          <div className="absolute bottom-4 left-4 right-4 pointer-events-none">
-            <div className="bg-black/80 backdrop-blur px-4 py-2 rounded-xl border border-white/10 text-[9px] font-mono text-zinc-400 truncate shadow-xl">
-               {currentAddress ? currentAddress : `COORD: ${currentLocation?.lat.toFixed(4)}, ${currentLocation?.lng.toFixed(4)}`}
+            <div className="bg-black/80 backdrop-blur px-4 py-2 rounded-xl border border-white/10 text-[9px] font-mono text-zinc-400 shadow-xl flex items-center justify-between gap-3">
+               <span className="truncate">{currentAddress ? currentAddress : `COORD: ${currentLocation?.lat.toFixed(4)}, ${currentLocation?.lng.toFixed(4)}`}</span>
+               <span className="shrink-0 flex items-center gap-2">
+                 <span className="text-green-400">{tracker.speed.toFixed(0)} km/h</span>
+                 <span className="text-zinc-600">|</span>
+                 <span className="text-blue-400">{(tracker.updateInterval / 1000).toFixed(0)}s</span>
+               </span>
             </div>
          </div>
       </div>

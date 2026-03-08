@@ -99,3 +99,26 @@ export interface IncidentReport {
   emergencyLevel?: string;
   intelligenceSummary?: string;
 }
+
+// ============================================================================
+// REAL-TIME TRACKING TYPES
+// ============================================================================
+
+export interface LocationUpdate {
+  lat: number;
+  lng: number;
+  speed: number;        // km/h
+  heading: number | null;
+  accuracy: number;     // meters
+  timestamp: number;    // epoch ms
+  mapperId?: string;
+}
+
+export interface TrackingState {
+  isTracking: boolean;
+  currentLocation: { lat: number; lng: number } | null;
+  speed: number;          // km/h
+  heading: number | null;
+  updateInterval: number; // ms — current adaptive interval
+  locationBuffer: LocationUpdate[];
+}
