@@ -6,10 +6,9 @@ import { UserProfileData } from '../profile/MapperProfile';
 
 const MapperLogin: React.FC = () => {
   const navigate = useNavigate();
-  const { setCurrentUser } = useAppContext();
+  const { currentUser, setCurrentUser, login } = useAppContext();
   const [nodeId, setNodeId] = useState('');
   const [passkey, setPasskey] = useState('');
-  const { currentUser } = useAppContext();
 
   // redirect if already logged in
   React.useEffect(() => {

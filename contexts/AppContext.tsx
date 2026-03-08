@@ -37,6 +37,21 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   });
 
+  // Helper: get stored JWT token
+  const getToken = (): string | null => {
+    try { return localStorage.getItem('authToken'); } catch { return null; }
+  };
+
+  // Helper: build Authorization headers
+  const authHeaders = (): HeadersInit => {
+    const token = getToken();
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
   const login = async (alias: string, passkey: string) => {
     try {
       const res = await fetch('/api/mappers/login', {
@@ -46,9 +61,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       });
       const json = await res.json();
       if (res.ok && json.success) {
-        const user = json.data as UserProfileData;
-        setCurrentUser(user);
-        try { localStorage.setItem('currentUser', JSON.stringify(user)); } catch {}
+        const { token, profile } = json.data as { token: string; profile: UserProfileData };
+        setCurrentUser(profile);
+        try {
+          localStorage.setItem('currentUser', JSON.stringify(profile));
+          localStorage.setItem('authToken', token);
+        } catch {}
         return true;
       }
       return false;
@@ -60,7 +78,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   const logout = () => {
     setCurrentUser(null);
-    try { localStorage.removeItem('currentUser'); } catch {}
+    try {
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('authToken');
+    } catch {}
   };
 
   useEffect(() => {
@@ -88,9 +109,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     try {
       await fetch('/api/alerts', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: authHeaders(),
         body: JSON.stringify(alert),
       });
     } catch (error) {
