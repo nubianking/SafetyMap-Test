@@ -144,8 +144,24 @@ async function startServer() {
   const app = express();
 
   // Core middleware
-  app.use(cors());
+  // CORS configuration for frontend communication
+  app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+  }));
+  
   app.use(express.json({ limit: '50mb' }));
+  
+  // Timeout middleware for large file uploads (5 minutes)
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    req.setTimeout(300000, () => {
+      res.status(408).json(createApiResponse(false, undefined, 'Request timeout'));
+    });
+    res.setTimeout(300000);
+    next();
+  });
 
   // Security headers (HSTS, X-Content-Type-Options, etc.)
   app.use(helmet({

@@ -86,14 +86,26 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const fetchAlerts = async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      
       try {
-        const response = await fetch('/api/alerts');
+        const response = await fetch('/api/alerts', {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
         if (response.ok) {
-          const data = await response.json();
-          setLiveAlerts(data.slice(0, 10));
+          const result = await response.json();
+          const data = result.data || result; // Handle both {data: []} and direct array
+          setLiveAlerts(Array.isArray(data) ? data.slice(0, 10) : []);
         }
-      } catch (error) {
-        console.error('Failed to fetch alerts:', error);
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.warn('Fetch alerts timed out');
+        } else {
+          console.error('Failed to fetch alerts:', error);
+        }
       }
     };
     fetchAlerts();
@@ -106,14 +118,28 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       console.log("CRITICAL WEAPON ALERT DETECTED");
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+    
     try {
-      await fetch('/api/alerts', {
+      const response = await fetch('/api/alerts', {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(alert),
+        signal: controller.signal
       });
-    } catch (error) {
-      console.error('Failed to post alert:', error);
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to post alert' }));
+        console.error('Failed to post alert:', errorData.error);
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.warn('Post alert timed out');
+      } else {
+        console.error('Failed to post alert:', error);
+      }
     }
   };
 

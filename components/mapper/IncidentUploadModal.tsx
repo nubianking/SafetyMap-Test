@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ICONS } from '../../constants';
 import { validateIncidentFileWithFallback, formatFileSize } from '../../utils/validateUpload';
+import { uploadIncidentFile } from '../../services/uploadService';
 
 interface IncidentUploadModalProps {
   type: 'video' | 'audio' | 'image';
@@ -136,11 +137,7 @@ export const IncidentUploadModal: React.FC<IncidentUploadModalProps> = ({ type, 
     if (!mediaBlob) return;
     
     setUploadStatus('analyzing');
-    
-    const formData = new FormData();
-    const fileExtension = type === 'video' ? 'mp4' : type === 'audio' ? 'wav' : 'jpg';
-    const fieldName = type === 'video' ? 'video_file' : type === 'audio' ? 'audio_file' : 'images';
-    formData.append(fieldName, mediaBlob, `incident.${fileExtension}`);
+    setValidationError(null);
     
     const metadata = {
       report_type: type,
@@ -154,30 +151,19 @@ export const IncidentUploadModal: React.FC<IncidentUploadModalProps> = ({ type, 
       confidence_user: "high"
     };
     
-    formData.append('metadata', JSON.stringify(metadata));
-
-    try {
-      let endpoint = '/api/v1/incidents/upload/video';
-      if (type === 'audio') endpoint = '/api/v1/incidents/upload/audio';
-      if (type === 'image') endpoint = '/api/v1/incidents/upload/image';
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setUploadStatus('success');
-        setTimeout(() => {
-          onSubmit(result);
-          onClose();
-        }, 2000);
-      } else {
-        setUploadStatus('error');
-      }
-    } catch (error) {
-      console.error("Upload failed:", error);
+    // Use upload service with timeout and error handling
+    const result = await uploadIncidentFile(mediaBlob, type, metadata, {
+      timeout: 120000 // 2 minutes for larger files
+    });
+    
+    if (result.success) {
+      setUploadStatus('success');
+      setTimeout(() => {
+        onSubmit(result.data);
+        onClose();
+      }, 2000);
+    } else {
+      setValidationError(result.error || 'Upload failed');
       setUploadStatus('error');
     }
   };
