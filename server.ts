@@ -90,28 +90,108 @@ const errorHandler = (err: Error, req: Request, res: Response, next: NextFunctio
 
 // JWT authentication middleware for protected routes
 interface AuthenticatedRequest extends Request {
-  user?: { mapperId: string; alias: string };
+  user?: { mapperId: string; alias: string; role?: string };
 }
 
+/**
+ * Authentication middleware with detailed logging for debugging.
+ * Verifies JWT token and attaches user info to request.
+ */
 const authenticate: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
-  const token = authHeader?.split(' ')[1]; // Expected: "Bearer <token>"
-
-  if (!token) {
+  
+  // Debug logging
+  authLogger.info('🔐 Auth check', { 
+    path: req.path,
+    hasAuthHeader: !!authHeader,
+    headerPreview: authHeader ? `${authHeader.substring(0, 20)}...` : 'none'
+  });
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    authLogger.warn('❌ Auth failed - invalid header format', { 
+      path: req.path,
+      ip: req.ip 
+    });
     return res.status(401).json(
-      createApiResponse(false, undefined, 'Authentication required. No token provided.')
+      createApiResponse(false, undefined, 'Access denied. Insufficient permissions.')
+    );
+  }
+
+  const token = authHeader.split(' ')[1];
+  
+  if (!token) {
+    authLogger.warn('❌ Auth failed - no token', { path: req.path, ip: req.ip });
+    return res.status(401).json(
+      createApiResponse(false, undefined, 'Access denied. Insufficient permissions.')
     );
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { mapperId: string; alias: string };
+    // Use the SAME secret used during login
+    const decoded = jwt.verify(token, JWT_SECRET) as { mapperId: string; alias: string; role?: string };
+    
+    authLogger.info('✅ Token verified', { 
+      mapperId: decoded.mapperId, 
+      alias: decoded.alias,
+      role: decoded.role || 'mapper'
+    });
+    
     (req as AuthenticatedRequest).user = decoded;
     next();
-  } catch (err) {
+    
+  } catch (error: any) {
+    // Detailed error logging for debugging
+    authLogger.error('❌ JWT Verification failed', {
+      error: error.message,
+      tokenPreview: token.substring(0, 20) + '...',
+      secretConfigured: !!process.env.JWT_SECRET,
+      usingFallback: JWT_SECRET.includes('fallback'),
+      path: req.path
+    });
+    
+    // Provide specific error messages in development
+    const isDev = process.env.NODE_ENV === 'development';
+    const details = isDev ? error.message : 'Invalid or expired token';
+    
     return res.status(403).json(
-      createApiResponse(false, undefined, 'Invalid or expired token.')
+      createApiResponse(false, undefined, 'Access denied. Insufficient permissions.')
     );
   }
+};
+
+/**
+ * Role-based authorization middleware.
+ * Checks if authenticated user has required role(s).
+ * Must be used AFTER authenticate middleware.
+ * 
+ * @param roles - Allowed roles
+ */
+const requireRole = (...roles: string[]): RequestHandler => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = (req as AuthenticatedRequest).user;
+    
+    if (!user) {
+      authLogger.warn('❌ Role check failed - no user in request', { roles });
+      return res.status(403).json(
+        createApiResponse(false, undefined, 'Access denied. Insufficient permissions.')
+      );
+    }
+    
+    const userRole = user.role || 'mapper';
+    
+    if (!roles.includes(userRole)) {
+      authLogger.warn('❌ Role check failed', { 
+        userRole, 
+        required: roles,
+        user: user.alias 
+      });
+      return res.status(403).json(
+        createApiResponse(false, undefined, 'Access denied. Insufficient permissions.')
+      );
+    }
+    
+    next();
+  };
 };
 
 // ============================================================================
@@ -440,9 +520,13 @@ async function startServer() {
         return res.status(401).json(createApiResponse(false, undefined, 'Invalid credentials'));
       }
 
-      // Sign JWT token
+      // Sign JWT token with role for consistency
       const token = jwt.sign(
-        { mapperId: found.id, alias: found.alias },
+        { 
+          mapperId: found.id, 
+          alias: found.alias,
+          role: 'mapper'  // Default role for regular mappers
+        },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN }
       );
@@ -837,6 +921,13 @@ async function startServer() {
     const server = app.listen(PORT, "0.0.0.0", () => {
       logger.info(`✓ Server running on http://0.0.0.0:${PORT}`);
       logger.info(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
+      
+      // JWT Configuration check
+      const jwtConfigured = !!process.env.JWT_SECRET;
+      logger.info(`✓ JWT Secret: ${jwtConfigured ? 'Configured' : 'Using fallback (change in production!)'}`);
+      if (!jwtConfigured) {
+        logger.error('⚠️  WARNING: JWT_SECRET not set. Using fallback secret - insecure for production!');
+      }
     });
 
     // Graceful shutdown
