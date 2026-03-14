@@ -153,7 +153,8 @@ export const IncidentUploadModal: React.FC<IncidentUploadModalProps> = ({ type, 
     
     // Use upload service with timeout and error handling
     const result = await uploadIncidentFile(mediaBlob, type, metadata, {
-      timeout: 120000 // 2 minutes for larger files
+      timeout: 120000, // 2 minutes for larger files
+      requireAuth: true
     });
     
     if (result.success) {
@@ -163,6 +164,14 @@ export const IncidentUploadModal: React.FC<IncidentUploadModalProps> = ({ type, 
         onClose();
       }, 2000);
     } else {
+      // Handle specific auth errors
+      if (result.statusCode === 401) {
+        setValidationError('Session expired. Redirecting to login...');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+        return;
+      }
       setValidationError(result.error || 'Upload failed');
       setUploadStatus('error');
     }
