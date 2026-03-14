@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../contexts/AppContext';
 import { ICONS } from '../constants';
 import { GoogleGenAI, Type } from "@google/genai";
+import { validateIncidentFileWithFallback, formatFileSize } from '../utils/validateUpload';
 
 const AnonymousUploadPortal: React.FC = () => {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ const AnonymousUploadPortal: React.FC = () => {
   const [results, setResults] = useState<any>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isAnonymizing, setIsAnonymizing] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
 
   const fileToDataUrl = (file: File): Promise<string> => {
@@ -26,10 +28,20 @@ const AnonymousUploadPortal: React.FC = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
-    if (selected && selected.type.startsWith('video/')) {
-      setFile(selected);
-      setResults(null);
+    if (!selected) return;
+    
+    // Validate file using utility
+    const validation = validateIncidentFileWithFallback(selected, 'video');
+    
+    if (!validation.valid) {
+      setUploadError(validation.error || 'Invalid file');
+      setFile(null);
+      return;
     }
+    
+    setUploadError(null);
+    setFile(selected);
+    setResults(null);
   };
 
   const analyzeVideo = async () => {
@@ -364,7 +376,7 @@ Analyze the following evidence and return ONLY the JSON object:`
             </p>
           </div>
 
-          <div className={`relative aspect-video rounded-[3rem] border-2 border-dashed transition-all duration-700 flex flex-col items-center justify-center p-12 overflow-hidden bg-zinc-950 ${file ? 'border-orange-500/50' : 'border-zinc-800'}`}>
+          <div className={`relative aspect-video rounded-[3rem] border-2 border-dashed transition-all duration-700 flex flex-col items-center justify-center p-12 overflow-hidden bg-zinc-950 ${uploadError ? 'border-red-500/50' : file ? 'border-orange-500/50' : 'border-zinc-800'}`}>
             {file ? (
               <div className="w-full h-full relative group">
                 <video 
@@ -388,11 +400,28 @@ Analyze the following evidence and return ONLY the JSON object:`
                 <label className="cursor-pointer text-center group">
                   <input type="file" className="hidden" accept="video/*" onChange={handleFileChange} />
                   <span className="block text-2xl font-black text-white uppercase italic tracking-tighter mb-3 group-hover:text-orange-500 transition-colors">Attach Evidence Payload</span>
-                  <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em]">MP4 / MOV — 6-POINT AUDIT ENABLED</span>
+                  <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em]">MP4 / MOV (Max 50MB) — 6-POINT AUDIT ENABLED</span>
                 </label>
               </>
             )}
 
+            {/* Error Display */}
+            {uploadError && (
+              <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center z-50 text-center px-12">
+                <div className="w-20 h-20 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mb-6">
+                  <ICONS.AlertTriangle className="w-10 h-10 text-red-500" />
+                </div>
+                <h4 className="text-2xl font-black italic uppercase tracking-tighter text-red-500 mb-4">Upload Validation Failed</h4>
+                <p className="text-[11px] text-zinc-400 font-medium max-w-sm mb-8">{uploadError}</p>
+                <button 
+                  onClick={() => setUploadError(null)} 
+                  className="px-8 py-4 bg-zinc-900 text-white rounded-2xl font-black text-[11px] tracking-widest uppercase transition-all hover:bg-zinc-800 border border-white/10"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+            
             {isProcessing && (
               <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center z-50 text-center px-12">
                  <div className="w-64 h-1 bg-zinc-900 rounded-full overflow-hidden mb-10 border border-white/5">

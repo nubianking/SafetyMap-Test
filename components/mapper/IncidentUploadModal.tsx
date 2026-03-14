@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ICONS } from '../../constants';
+import { validateIncidentFileWithFallback, formatFileSize } from '../../utils/validateUpload';
 
 interface IncidentUploadModalProps {
   type: 'video' | 'audio' | 'image';
@@ -15,6 +16,7 @@ export const IncidentUploadModal: React.FC<IncidentUploadModalProps> = ({ type, 
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'analyzing' | 'success' | 'error'>('idle');
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [incidentCategory, setIncidentCategory] = useState('robbery');
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -44,6 +46,13 @@ export const IncidentUploadModal: React.FC<IncidentUploadModalProps> = ({ type, 
         input.onchange = (e: any) => {
           const file = e.target.files?.[0];
           if (file) {
+            // Validate image file
+            const validation = validateIncidentFileWithFallback(file, 'image');
+            if (!validation.valid) {
+              setValidationError(validation.error || 'Invalid image file');
+              return;
+            }
+            setValidationError(null);
             setMediaBlob(file);
             setMediaUrl(URL.createObjectURL(file));
           }
@@ -74,6 +83,22 @@ export const IncidentUploadModal: React.FC<IncidentUploadModalProps> = ({ type, 
 
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: type === 'video' ? 'video/mp4' : 'audio/wav' });
+        
+        // Create a File object from Blob for validation
+        const fileName = `incident_${Date.now()}.${type === 'video' ? 'mp4' : 'wav'}`;
+        const file = new File([blob], fileName, { type: blob.type });
+        
+        // Validate recorded media
+        const validation = validateIncidentFileWithFallback(file, type);
+        if (!validation.valid) {
+          setValidationError(validation.error || `Invalid ${type} file`);
+          setIsRecording(false);
+          if (timerRef.current) clearInterval(timerRef.current);
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
+        
+        setValidationError(null);
         setMediaBlob(blob);
         stream.getTracks().forEach(track => track.stop());
         if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
@@ -173,7 +198,26 @@ export const IncidentUploadModal: React.FC<IncidentUploadModalProps> = ({ type, 
           </button>
         </div>
 
-        {uploadStatus === 'idle' && (
+        {/* Validation Error Display */}
+        {validationError && (
+          <div className="py-8 flex flex-col items-center justify-center gap-4 text-center">
+            <div className="w-16 h-16 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center">
+              <ICONS.AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-lg font-black italic uppercase tracking-tighter text-red-500">Validation Failed</h4>
+              <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest max-w-[200px]">{validationError}</p>
+            </div>
+            <button 
+              onClick={() => setValidationError(null)}
+              className="mt-2 px-6 py-3 bg-zinc-900 text-white rounded-xl font-black text-[10px] tracking-widest uppercase transition-all hover:bg-zinc-800 border border-white/10"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+        
+        {uploadStatus === 'idle' && !validationError && (
           <>
             <div className="space-y-4">
               <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Incident Category</label>
@@ -211,7 +255,7 @@ export const IncidentUploadModal: React.FC<IncidentUploadModalProps> = ({ type, 
                 <div className="text-center space-y-2">
                   <ICONS.Activity className="w-12 h-12 text-green-500 mx-auto" />
                   <p className="text-xs font-black uppercase tracking-widest text-green-500">Capture Complete</p>
-                  <p className="text-[10px] text-zinc-500 font-mono">{(mediaBlob.size / 1024 / 1024).toFixed(2)} MB</p>
+                  <p className="text-[10px] text-zinc-500 font-mono">{formatFileSize(mediaBlob.size)}</p>
                 </div>
               ) : (
                 !isRecording && type === 'audio' && (

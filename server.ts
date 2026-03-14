@@ -601,6 +601,20 @@ async function startServer() {
     return analyses[analysisType];
   };
 
+  // File size limits (in bytes) - must match client-side constants
+  const FILE_SIZE_LIMITS = {
+    video: 50 * 1024 * 1024,  // 50MB
+    audio: 10 * 1024 * 1024,  // 10MB
+    image: 10 * 1024 * 1024   // 10MB
+  } as const;
+
+  // Allowed MIME types - must match client-side constants
+  const ALLOWED_MIME_TYPES = {
+    video: ['video/mp4', 'video/quicktime', 'video/webm'],
+    audio: ['audio/wav', 'audio/mpeg', 'audio/webm', 'audio/ogg'],
+    image: ['image/jpeg', 'image/png', 'image/webp']
+  } as const;
+
   const handleMediaUpload = (mediaType: 'video' | 'audio' | 'image'): RequestHandler => {
     return async (req: Request, res: Response) => {
       try {
@@ -614,6 +628,24 @@ async function startServer() {
           return res.status(400).json(
             createApiResponse(false, undefined, `No ${mediaType} file provided`)
           );
+        }
+
+        // Server-side file validation
+        const filesToValidate = mediaType === 'image' ? files! : [file!];
+        for (const f of filesToValidate) {
+          // Check file size
+          if (f.size > FILE_SIZE_LIMITS[mediaType]) {
+            return res.status(400).json(
+              createApiResponse(false, undefined, `File too large. Max: ${FILE_SIZE_LIMITS[mediaType] / 1024 / 1024}MB`)
+            );
+          }
+          
+          // Check MIME type
+          if (!ALLOWED_MIME_TYPES[mediaType].includes(f.mimetype)) {
+            return res.status(400).json(
+              createApiResponse(false, undefined, `Invalid file type. Allowed: ${ALLOWED_MIME_TYPES[mediaType].join(', ')}`)
+            );
+          }
         }
 
         // Create mock AI analysis
