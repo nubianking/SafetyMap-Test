@@ -766,8 +766,9 @@ async function startServer() {
         }
 
         // Save files to SQLite database as evidence
-        const evidenceIds: string[] = [];
-        const evidenceHashes: string[] = [];
+        // FIXED: Explicit type assertions to prevent 'never' inference
+        const evidenceIds: string[] = [] as string[];
+        const evidenceHashes: string[] = [] as string[];
         const filesToSave = mediaType === 'image' ? (files || []) : (file ? [file] : []);
         
         for (const f of filesToSave) {
