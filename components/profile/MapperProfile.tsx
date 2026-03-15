@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TrustCard } from './TrustCard';
 import { ICONS } from '../../constants';
 import { TrendingUp, Clock, ShieldCheck, Zap, Fuel, Wifi, Users, Wallet, Settings, Award } from 'lucide-react';
