@@ -16,7 +16,8 @@
     "types": [
       "node",
       "react",
-      "react-dom"
+      "react-dom",
+      "google.maps"
     ],
     "moduleResolution": "bundler",
     "isolatedModules": true,
