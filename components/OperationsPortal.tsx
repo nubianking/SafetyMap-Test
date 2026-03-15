@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../contexts/AppContext';
-import { Shield, Zap, Map as MapIcon, User, AlertTriangle, Camera, Video, Mic, Activity } from 'lucide-react';
+import { Shield, Zap, Map as MapIcon, User, AlertTriangle, Camera, Video, Mic, Activity, FileVideo } from 'lucide-react';
 import { UserProfileData } from './profile/MapperProfile';
 import { IncidentUploadModal } from './mapper/IncidentUploadModal';
+import { EvidenceReviewModal } from './EvidenceReview';
 import { LiveAlert } from '../types';
+import { apiFetch } from '../services/api';
 
 interface OperationsPortalProps {
   user: UserProfileData | null;
@@ -15,6 +17,22 @@ const OperationsPortal: React.FC<OperationsPortalProps> = ({ user }) => {
   const { handleNewAlert, logout } = useAppContext();
   const [uploadModalType, setUploadModalType] = useState<'video' | 'audio' | 'image' | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [showEvidenceModal, setShowEvidenceModal] = useState(false);
+  const [evidenceCount, setEvidenceCount] = useState(0);
+
+  // Fetch evidence count on mount
+  useEffect(() => {
+    const fetchEvidenceCount = async () => {
+      try {
+        const data = await apiFetch<any[]>('/api/v1/evidence');
+        setEvidenceCount(data.length);
+      } catch (err) {
+        // Auth errors handled by apiFetch, silently fail on other errors
+        console.warn('[OperationsPortal] Failed to fetch evidence count:', err);
+      }
+    };
+    fetchEvidenceCount();
+  }, []);
 
   // Fetch location when opening modal
   const handleOpenUpload = (type: 'video' | 'audio' | 'image') => {
@@ -54,11 +72,22 @@ const OperationsPortal: React.FC<OperationsPortalProps> = ({ user }) => {
               OPERATIONS <span className="text-blue-500">COMMAND</span>
             </h2>
           </div>
-          <div className="text-right">
-            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Node Identity</p>
-            <p className="text-xl font-black text-white uppercase">{user?.alias || 'UNKNOWN_NODE'}</p>
-            <p className="text-sm font-bold text-blue-500 uppercase">{user?.rank || 'Rookie'}</p>
-            <button onClick={() => { logout(); navigate('/login'); }} className="mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:underline">Logout</button>
+          <div className="flex items-center gap-4">
+            {/* Evidence Archive Button */}
+            <button 
+              onClick={() => setShowEvidenceModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors border border-zinc-700"
+            >
+              <FileVideo className="w-4 h-4" />
+              Evidence Archive ({evidenceCount})
+            </button>
+            
+            <div className="text-right border-l border-white/10 pl-4">
+              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Node Identity</p>
+              <p className="text-xl font-black text-white uppercase">{user?.alias || 'UNKNOWN_NODE'}</p>
+              <p className="text-sm font-bold text-blue-500 uppercase">{user?.rank || 'Rookie'}</p>
+              <button onClick={() => { logout(); navigate('/login'); }} className="mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:underline">Logout</button>
+            </div>
           </div>
         </div>
 
@@ -236,6 +265,14 @@ const OperationsPortal: React.FC<OperationsPortalProps> = ({ user }) => {
           }}
           currentLocation={currentLocation}
           deviceFingerprint={`NODE-${user?.alias?.toUpperCase() || 'UNKNOWN'}`}
+        />
+      )}
+
+      {/* Evidence Archive Modal */}
+      {showEvidenceModal && (
+        <EvidenceReviewModal 
+          isOpen={showEvidenceModal} 
+          onClose={() => setShowEvidenceModal(false)} 
         />
       )}
     </div>
