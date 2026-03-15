@@ -726,11 +726,11 @@ async function startServer() {
   } as const;
 
   // Allowed MIME types - must match client-side constants
-  const ALLOWED_MIME_TYPES = {
+  const ALLOWED_MIME_TYPES: Record<'video' | 'audio' | 'image', string[]> = {
     video: ['video/mp4', 'video/quicktime', 'video/webm'],
     audio: ['audio/wav', 'audio/mpeg', 'audio/webm', 'audio/ogg'],
     image: ['image/jpeg', 'image/png', 'image/webp']
-  } as const;
+  };
 
   const handleMediaUpload = (mediaType: 'video' | 'audio' | 'image'): RequestHandler => {
     return async (req: Request, res: Response) => {
@@ -758,7 +758,7 @@ async function startServer() {
           }
           
           // Check MIME type
-          if (!ALLOWED_MIME_TYPES[mediaType].includes(f.mimetype as any)) {
+          if (!ALLOWED_MIME_TYPES[mediaType].includes(f.mimetype)) {
             return res.status(400).json(
               createApiResponse(false, undefined, `Invalid file type. Allowed: ${ALLOWED_MIME_TYPES[mediaType].join(', ')}`)
             );
