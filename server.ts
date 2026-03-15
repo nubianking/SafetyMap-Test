@@ -12,7 +12,7 @@ import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import winston from "winston";
-import evidenceRoutes, { addEvidence } from "./routes/evidence.js";
+import evidenceRoutes, { addEvidence } from "./routes/evidence";
 
 // ============================================================================
 // TYPES & INTERFACES
