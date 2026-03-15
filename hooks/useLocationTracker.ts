@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { LocationUpdate, TrackingState } from '../types';
+import { forceReLogin } from '../services/api';
 
 // ---- Adaptive interval tiers ------------------------------------------------
 
@@ -108,6 +109,21 @@ export function useLocationTracker(
       });
 
       if (!res.ok) {
+        // Handle auth errors - force re-login on 401 or permission-related 403
+        if (res.status === 401 || res.status === 403) {
+          const errorData = await res.clone().json().catch(() => ({ error: '' }));
+          const errorMessage = errorData.error || '';
+          const isAuthRelated = res.status === 401 || 
+            ['permission', 'forbidden', 'unauthorized', 'invalid token', 'signature', 'jwt', 'auth']
+              .some(keyword => errorMessage.toLowerCase().includes(keyword.toLowerCase()));
+          
+          if (isAuthRelated) {
+            console.warn(`[Tracker] Auth error (${res.status}): ${errorMessage}`);
+            forceReLogin('session_expired');
+            return;
+          }
+        }
+        
         // Put the locations back so they aren't lost
         bufferRef.current = [...payload, ...bufferRef.current];
         console.warn('[Tracker] Server push failed, re-buffered', res.status);

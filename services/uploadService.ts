@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { validateIncidentFileWithFallback } from '../utils/validateUpload';
+import { handleApiResponse, forceReLogin } from './api';
 
 export interface UploadMetadata {
   report_type: 'video' | 'audio' | 'image';
@@ -155,8 +156,26 @@ export const uploadIncidentFile = async (
     
     clearTimeout(timeoutId);
     
-    // 6. Handle specific HTTP error codes
+    // 6. Handle specific HTTP error codes with auth error checking
     if (!response.ok) {
+      // Handle auth errors (401/403) with forced re-login
+      if (response.status === 401 || (response.status === 403)) {
+        const errorData = await response.json().catch(() => ({ error: undefined }));
+        const errorMessage = errorData.error || '';
+        const isAuthRelated = ['permission', 'forbidden', 'unauthorized', 'invalid token', 'signature', 'jwt', 'auth']
+          .some(keyword => errorMessage.toLowerCase().includes(keyword.toLowerCase()));
+        
+        if (response.status === 401 || isAuthRelated) {
+          console.warn(`[Upload] Auth error (${response.status}): ${errorMessage}`);
+          forceReLogin('session_expired');
+          return { 
+            success: false, 
+            error: 'Session expired. Please log in again.',
+            statusCode: response.status
+          };
+        }
+      }
+      
       const errorData = await response.json().catch(() => ({ error: undefined }));
       const errorMessage = getErrorMessageForStatus(response.status, errorData.error);
       return { 
@@ -245,6 +264,20 @@ export const uploadImageBatch = async (
     clearTimeout(timeoutId);
     
     if (!response.ok) {
+      // Handle auth errors (401/403) with forced re-login
+      if (response.status === 401 || response.status === 403) {
+        const errorData = await response.json().catch(() => ({ error: undefined }));
+        const errorMessage = errorData.error || '';
+        const isAuthRelated = ['permission', 'forbidden', 'unauthorized', 'invalid token', 'signature', 'jwt', 'auth']
+          .some(keyword => errorMessage.toLowerCase().includes(keyword.toLowerCase()));
+        
+        if (response.status === 401 || isAuthRelated) {
+          console.warn(`[Upload] Auth error (${response.status}): ${errorMessage}`);
+          forceReLogin('session_expired');
+          throw new Error('Session expired. Please log in again.');
+        }
+      }
+      
       const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
       throw new Error(errorData.error || `Upload failed: ${response.status}`);
     }

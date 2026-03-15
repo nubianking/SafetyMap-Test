@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { validateIncidentFileWithFallback } from '../utils/validateUpload';
 import { checkAuthBeforeUpload } from '../services/uploadService';
+import { forceReLogin } from '../services/api';
 
 interface DirectReportProps {
   onSuccess?: (result: any) => void;
@@ -83,11 +84,22 @@ export const DirectReport: React.FC<DirectReportProps> = ({
       setProgress(75);
 
       // 5. Handle specific HTTP error codes
+      // Handle auth errors - force re-login on 401 or permission-related 403
       if (response.status === 401) {
-        localStorage.removeItem('authToken'); // Clear invalid token
+        forceReLogin('session_expired');
         throw new Error('Session expired. Please log in again.');
       }
       if (response.status === 403) {
+        // Check if it's a permission/session related 403
+        const errorData = await response.clone().json().catch(() => ({ error: '' }));
+        const errorMessage = errorData.error || '';
+        const isAuthRelated = ['permission', 'forbidden', 'unauthorized', 'invalid token', 'signature', 'jwt', 'auth']
+          .some(keyword => errorMessage.toLowerCase().includes(keyword.toLowerCase()));
+        
+        if (isAuthRelated) {
+          forceReLogin('session_expired');
+          throw new Error('Session expired. Please log in again.');
+        }
         throw new Error('Access denied. Insufficient permissions.');
       }
       if (response.status === 413) {

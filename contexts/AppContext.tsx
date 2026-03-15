@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { LiveAlert } from '../types';
 import { UserProfileData } from '../components/profile/MapperProfile';
+import { forceReLogin } from '../services/api';
 
 interface AppContextType {
   liveAlerts: LiveAlert[];
@@ -132,6 +133,21 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to post alert' }));
+        
+        // Handle auth errors - force re-login on 401 or permission-related 403
+        if (response.status === 401 || response.status === 403) {
+          const errorMessage = errorData.error || '';
+          const isAuthRelated = response.status === 401 || 
+            ['permission', 'forbidden', 'unauthorized', 'invalid token', 'signature', 'jwt', 'auth']
+              .some(keyword => errorMessage.toLowerCase().includes(keyword.toLowerCase()));
+          
+          if (isAuthRelated) {
+            console.warn(`[AppContext] Auth error (${response.status}): ${errorMessage}`);
+            forceReLogin('session_expired');
+            return;
+          }
+        }
+        
         console.error('Failed to post alert:', errorData.error);
       }
     } catch (error: any) {

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../../contexts/AppContext';
 import { ICONS } from '../../constants';
 import { UserProfileData } from '../profile/MapperProfile';
 
 const MapperLogin: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { currentUser, setCurrentUser, login } = useAppContext();
   const [nodeId, setNodeId] = useState('');
   const [passkey, setPasskey] = useState('');
@@ -18,6 +19,17 @@ const MapperLogin: React.FC = () => {
   }, [currentUser, navigate]);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [error, setError] = useState('');
+  const [sessionMessage, setSessionMessage] = useState('');
+
+  // Check for session expiration or other redirect reasons
+  useEffect(() => {
+    const reason = searchParams.get('reason');
+    if (reason === 'session_expired') {
+      setSessionMessage('Your session has expired. Please log in again to continue.');
+    } else if (reason === 'auth_required') {
+      setSessionMessage('Authentication required. Please log in to access this page.');
+    }
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +87,11 @@ const MapperLogin: React.FC = () => {
 
           <form onSubmit={handleLogin} className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 p-8 rounded-[2.5rem] shadow-2xl space-y-6">
             <div className="space-y-4">
+              {sessionMessage && (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 text-center animate-in fade-in slide-in-from-top-2">
+                  <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest">{sessionMessage}</p>
+                </div>
+              )}
               {error && (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-center animate-in fade-in slide-in-from-top-2">
                   <p className="text-red-500 text-[10px] font-black uppercase tracking-widest">{error}</p>
