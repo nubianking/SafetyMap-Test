@@ -945,10 +945,8 @@ async function startServer() {
       logger.info('Serving static production files');
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
       app.use(express.static("dist"));
-      // SPA fallback: serve index.html for unmatched routes
-      app.use((req: Request, res: Response) => {
-        res.sendFile(path.resolve(__dirname, "dist/index.html"));
-      });
+      // SPA fallback: serve index.html for non-API routes only
+      // This must come AFTER the API 404 handler below
     }
   };
 
@@ -960,14 +958,29 @@ async function startServer() {
     await setupViteMiddleware(app);
 
     // ============================================================================
-    // ERROR HANDLING & 404 (must be after Vite/SPA middleware)
+    // ERROR HANDLING & 404 (must be after Vite/SPA middleware, before SPA fallback)
     // ============================================================================
 
-    app.use((req: Request, res: Response) => {
+    // API 404 handler - MUST come before SPA fallback
+    app.use('/api', (req: Request, res: Response) => {
       res.status(404).json(
-        createApiResponse(false, undefined, `Route not found: ${req.method} ${req.path}`)
+        createApiResponse(false, undefined, `API route not found: ${req.method} ${req.path}`)
       );
     });
+
+    // SPA fallback for non-API routes (production only)
+    if (process.env.NODE_ENV === "production") {
+      const __dirname = path.dirname(fileURLToPath(import.meta.url));
+      app.get('*', (req: Request, res: Response) => {
+        // Don't serve index.html for API routes
+        if (req.path.startsWith('/api')) {
+          return res.status(404).json(
+            createApiResponse(false, undefined, `API route not found: ${req.method} ${req.path}`)
+          );
+        }
+        res.sendFile(path.resolve(__dirname, "dist/index.html"));
+      });
+    }
 
     app.use(errorHandler);
 
