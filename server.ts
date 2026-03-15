@@ -5,12 +5,14 @@ import cors from "cors";
 import multer from "multer";
 import helmet from "helmet";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import winston from "winston";
+import evidenceRoutes, { addEvidence, getEvidenceDir } from "./routes/evidence.js";
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -81,6 +83,12 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE }
 });
+
+// Ensure evidence directory exists
+const EVIDENCE_DIR = getEvidenceDir();
+if (!fs.existsSync(EVIDENCE_DIR)) {
+  fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
+}
 
 const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error('Error:', err.message);
@@ -760,12 +768,39 @@ async function startServer() {
           }
         }
 
+        // Save files to disk and register as evidence
+        const evidenceIds: string[] = [];
+        const filesToSave = mediaType === 'image' ? (files || []) : (file ? [file] : []);
+        
+        for (const f of filesToSave) {
+          const evidenceId = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+          const ext = path.extname(f.originalname) || `.${mediaType === 'video' ? 'mp4' : mediaType === 'audio' ? 'wav' : 'jpg'}`;
+          const filename = `${evidenceId}${ext}`;
+          const filepath = path.join(EVIDENCE_DIR, filename);
+          
+          // Write file to disk
+          fs.writeFileSync(filepath, f.buffer);
+          
+          // Register in evidence store
+          addEvidence(
+            evidenceId,
+            filename,
+            mediaType,
+            f.size,
+            metadata,
+            (req as any).user?.mapperId
+          );
+          
+          evidenceIds.push(evidenceId);
+        }
+
         // Create mock AI analysis
         const analysis = createMockAnalysis(metadata.incident_category, mediaType);
 
         logger.info(`${mediaType} uploaded and analyzed`, {
           category: metadata.incident_category,
-          confidence: analysis.confidence
+          confidence: analysis.confidence,
+          evidenceIds
         });
 
         const responseData = {
@@ -773,6 +808,7 @@ async function startServer() {
           message: `${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} uploaded and analyzed successfully`,
           analysis,
           metadata,
+          evidenceIds,
           ...(mediaType === 'image' && { files_received: files?.length })
         };
 
@@ -794,6 +830,11 @@ async function startServer() {
   app.post("/api/v1/incidents/upload/audio", authenticate, upload.single('audio_file'), handleMediaUpload('audio'));
   app.post("/api/v1/incidents/upload/image", authenticate, upload.array('images', 3), handleMediaUpload('image'));
 
+  // ============================================================================
+  // EVIDENCE ROUTES
+  // ============================================================================
+
+  app.use('/api/v1/evidence', authenticate, evidenceRoutes);
 
   // ============================================================================
   // GOOGLE MAPS API PROXIES
