@@ -35,7 +35,7 @@ export const DirectReport: React.FC<DirectReportProps> = ({
     // 1. Validate file
     const validation = validateIncidentFileWithFallback(file, type);
     if (!validation.valid) {
-      setError(validation.error);
+      setError(validation.error || 'Validation failed');
       setUploading(false);
       return;
     }
