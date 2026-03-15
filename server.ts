@@ -967,7 +967,7 @@ async function startServer() {
     // SPA fallback for non-API routes (production only)
     if (process.env.NODE_ENV === "production") {
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
-      app.get('/(.*)', (req: Request, res: Response) => {
+      app.get('/:path(.*)', (req: Request, res: Response) => {
         // Don't serve index.html for API routes
         if (req.path.startsWith('/api')) {
           return res.status(404).json(
