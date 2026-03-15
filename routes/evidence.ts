@@ -9,10 +9,13 @@ import fs from 'fs';
 
 const router = Router();
 
+// Use /data on Railway (persistent), or local data directory for development
+const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/data' : path.join(process.cwd(), 'data');
+
 // Ensure data directory exists
-const DATA_DIR = path.join(process.cwd(), 'data');
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+  console.log(`[Evidence] Created data directory: ${DATA_DIR}`);
 }
 
 const DB_PATH = process.env.EVIDENCE_DB_PATH || path.join(DATA_DIR, 'evidence.db');
