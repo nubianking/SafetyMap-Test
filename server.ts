@@ -45,7 +45,19 @@ const MAX_ALERTS = 50;
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const UPLOAD_CONFIDENCE_THRESHOLD = 0.5;
 const SALT_ROUNDS = 10;
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_dev_secret_change_me';
+// JWT Secret validation - fail hard in production if missing
+const rawJwtSecret = process.env.JWT_SECRET;
+
+if (!rawJwtSecret && process.env.NODE_ENV === 'production') {
+  console.error('❌ FATAL: JWT_SECRET environment variable is required in production');
+  process.exit(1); // Hard fail - don't start server without secret
+}
+
+if (!rawJwtSecret) {
+  console.warn('⚠️  WARNING: Using insecure fallback JWT secret for development only');
+}
+
+const JWT_SECRET = rawJwtSecret || 'dev_fallback_secret_change_immediately';
 const JWT_EXPIRES_IN = '24h';
 
 // Structured auth logger — writes to auth.log + console
