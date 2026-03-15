@@ -27,7 +27,7 @@ const DriverPortal: React.FC<DriverPortalProps> = ({ user }) => {
   const [slashTimer, setSlashTimer] = useState<number | null>(null);
   const [detectionResults, setDetectionResults] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [nodeStatus, setNodeStatus] = useState<'IDLE' | 'CALIBRATING' | 'ACTIVE' | 'SECURE'>('IDLE');
+  const [nodeStatus, setNodeStatus] = useState<'IDLE' | 'CALIBRATING' | 'ACTIVE' | 'SECURE' | 'ERROR'>('IDLE');
   const [currentAddress, setCurrentAddress] = useState<string | null>(null);
 
   // --- Adaptive speed-based location tracking --------------------------------
@@ -449,7 +449,7 @@ Analyze the following evidence and return ONLY the JSON object:`
       // Don't throw - allow the component to continue monitoring
     } finally {
       setIsAnalyzing(false);
-      if (setNodeStatus !== 'ERROR') {
+      if (nodeStatus !== 'ERROR') {
         setNodeStatus('ACTIVE');
       }
     }
