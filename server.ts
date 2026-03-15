@@ -681,7 +681,7 @@ async function startServer() {
 
   interface UploadAnalysisResult {
     incident_detected: boolean;
-    type: string;
+    type?: string;
     confidence: number;
     [key: string]: any;
   }
