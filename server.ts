@@ -758,7 +758,7 @@ async function startServer() {
           }
           
           // Check MIME type
-          if (!ALLOWED_MIME_TYPES[mediaType].includes(f.mimetype)) {
+          if (!ALLOWED_MIME_TYPES[mediaType].includes(f.mimetype as any)) {
             return res.status(400).json(
               createApiResponse(false, undefined, `Invalid file type. Allowed: ${ALLOWED_MIME_TYPES[mediaType].join(', ')}`)
             );
@@ -791,7 +791,7 @@ async function startServer() {
         }
 
         // Create mock AI analysis
-        const analysis = createMockAnalysis(metadata.incident_category, mediaType);
+        const analysis = createMockAnalysis(metadata.incident_category || 'unknown', mediaType);
 
         logger.info(`${mediaType} uploaded and analyzed`, {
           category: metadata.incident_category,
