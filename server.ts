@@ -12,7 +12,7 @@ import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import winston from "winston";
-import evidenceRoutes, { addEvidence, getEvidenceDir } from "./routes/evidence.js";
+import evidenceRoutes, { addEvidence } from "./routes/evidence.js";
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -84,11 +84,7 @@ const upload = multer({
   limits: { fileSize: MAX_FILE_SIZE }
 });
 
-// Ensure evidence directory exists
-const EVIDENCE_DIR = getEvidenceDir();
-if (!fs.existsSync(EVIDENCE_DIR)) {
-  fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
-}
+
 
 const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error('Error:', err.message);
@@ -768,30 +764,28 @@ async function startServer() {
           }
         }
 
-        // Save files to disk and register as evidence
+        // Save files to SQLite database as evidence
         const evidenceIds: string[] = [];
+        const evidenceHashes: string[] = [];
         const filesToSave = mediaType === 'image' ? (files || []) : (file ? [file] : []);
         
         for (const f of filesToSave) {
           const evidenceId = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
           const ext = path.extname(f.originalname) || `.${mediaType === 'video' ? 'mp4' : mediaType === 'audio' ? 'wav' : 'jpg'}`;
           const filename = `${evidenceId}${ext}`;
-          const filepath = path.join(EVIDENCE_DIR, filename);
           
-          // Write file to disk
-          fs.writeFileSync(filepath, f.buffer);
-          
-          // Register in evidence store
-          addEvidence(
+          // Store in SQLite database
+          const result = addEvidence(
             evidenceId,
             filename,
             mediaType,
-            f.size,
+            f.buffer,
             metadata,
             (req as any).user?.mapperId
           );
           
           evidenceIds.push(evidenceId);
+          evidenceHashes.push(result.hash);
         }
 
         // Create mock AI analysis

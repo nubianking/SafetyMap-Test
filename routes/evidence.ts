@@ -1,101 +1,136 @@
 // ============================================================================
-// EVIDENCE ROUTES - API endpoints for evidence management
+// EVIDENCE ROUTES - API endpoints for evidence management (SQLite backend)
 // ============================================================================
 
 import { Router, Request, Response } from 'express';
+import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const router = Router();
 
-// Evidence storage directory
-const EVIDENCE_DIR = path.join(process.cwd(), 'uploads', 'evidence');
-const METADATA_FILE = path.join(EVIDENCE_DIR, 'metadata.json');
-
-// Ensure evidence directory exists
-if (!fs.existsSync(EVIDENCE_DIR)) {
-  fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
+// Ensure data directory exists
+const DATA_DIR = path.join(process.cwd(), 'data');
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// In-memory evidence store (loaded from disk on startup)
-interface EvidenceItem {
-  id: string;
-  hash: string;
-  filename: string;
-  mimetype: 'video' | 'image' | 'audio';
-  size: number;
-  uploaded_at: string;
-  audited: boolean;
-  uploader_id?: string;
-  metadata: {
-    lat: number;
-    lng: number;
-    incident_type: string;
-    severity: 'low' | 'medium' | 'high' | 'critical';
-  };
-}
+const DB_PATH = process.env.EVIDENCE_DB_PATH || path.join(DATA_DIR, 'evidence.db');
+const db = new Database(DB_PATH);
 
-let evidenceStore: EvidenceItem[] = [];
+// Enable WAL mode for better concurrency
+db.pragma('journal_mode = WAL');
 
-// Load existing metadata from disk
-const loadMetadata = () => {
-  try {
-    if (fs.existsSync(METADATA_FILE)) {
-      const data = fs.readFileSync(METADATA_FILE, 'utf-8');
-      evidenceStore = JSON.parse(data);
-      console.log(`[Evidence] Loaded ${evidenceStore.length} items from disk`);
-    }
-  } catch (error) {
-    console.error('[Evidence] Failed to load metadata:', error);
-    evidenceStore = [];
-  }
-};
+// Initialize table if not exists
+db.exec(`
+  CREATE TABLE IF NOT EXISTS evidence (
+    id TEXT PRIMARY KEY,
+    hash TEXT UNIQUE,
+    filename TEXT,
+    mimetype TEXT,
+    size INTEGER,
+    data BLOB,
+    metadata TEXT,
+    audit_result TEXT,
+    uploader_id TEXT,
+    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    audited BOOLEAN DEFAULT 0
+  )
+`);
 
-// Save metadata to disk
-const saveMetadata = () => {
-  try {
-    fs.writeFileSync(METADATA_FILE, JSON.stringify(evidenceStore, null, 2));
-  } catch (error) {
-    console.error('[Evidence] Failed to save metadata:', error);
-  }
-};
+// Create index for faster queries
+db.exec(`CREATE INDEX IF NOT EXISTS idx_evidence_uploaded_at ON evidence(uploaded_at DESC)`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_evidence_audited ON evidence(audited)`);
 
-// Load on startup
-loadMetadata();
+console.log(`[Evidence] SQLite database initialized at ${DB_PATH}`);
 
 // ============================================================================
-// GET /api/v1/evidence - List all evidence
+// GET /api/v1/evidence - List all evidence with pagination
 // ============================================================================
 router.get('/', (req: Request, res: Response) => {
   try {
-    // Sort by uploaded_at descending (newest first)
-    const sorted = [...evidenceStore].sort(
-      (a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()
-    );
-    res.json(sorted);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const filter = req.query.filter || 'all';
+    
+    const offset = (page - 1) * limit;
+    
+    let whereClause = 'WHERE 1=1';
+    if (filter === 'audited') whereClause += ' AND audited = 1';
+    if (filter === 'pending') whereClause += ' AND audited = 0';
+    
+    const countStmt = db.prepare(`SELECT COUNT(*) as total FROM evidence ${whereClause}`);
+    const { total } = countStmt.get() as { total: number };
+    
+    const stmt = db.prepare(`
+      SELECT id, hash, filename, mimetype, size, metadata, audit_result, uploaded_at, audited, uploader_id
+      FROM evidence 
+      ${whereClause}
+      ORDER BY uploaded_at DESC 
+      LIMIT ? OFFSET ?
+    `);
+    
+    const rows = stmt.all(limit, offset) as any[];
+    
+    const data = rows.map(row => ({
+      id: row.id,
+      hash: row.hash,
+      filename: row.filename,
+      mimetype: row.mimetype,
+      size: row.size,
+      uploaded_at: row.uploaded_at,
+      audited: Boolean(row.audited),
+      uploader_id: row.uploader_id,
+      metadata: JSON.parse(row.metadata || '{}'),
+      audit_result: row.audit_result ? JSON.parse(row.audit_result) : null
+    }));
+    
+    res.json({
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
+    
   } catch (error) {
-    console.error('[Evidence] Failed to list evidence:', error);
-    res.status(500).json({ error: 'Failed to retrieve evidence list' });
+    console.error('[Evidence] Error fetching evidence:', error);
+    res.status(500).json({ error: 'Failed to fetch evidence' });
   }
 });
 
 // ============================================================================
-// GET /api/v1/evidence/:id - Get single evidence item
+// GET /api/v1/evidence/:id - Get single evidence metadata
 // ============================================================================
 router.get('/:id', (req: Request, res: Response) => {
   try {
-    const item = evidenceStore.find(e => e.id === req.params.id);
-    if (!item) {
+    const stmt = db.prepare(`
+      SELECT id, hash, filename, mimetype, size, metadata, audit_result, uploaded_at, audited, uploader_id
+      FROM evidence 
+      WHERE id = ?
+    `);
+    const row = stmt.get(req.params.id) as any;
+    
+    if (!row) {
       return res.status(404).json({ error: 'Evidence not found' });
     }
-    res.json(item);
+    
+    res.json({
+      id: row.id,
+      hash: row.hash,
+      filename: row.filename,
+      mimetype: row.mimetype,
+      size: row.size,
+      uploaded_at: row.uploaded_at,
+      audited: Boolean(row.audited),
+      uploader_id: row.uploader_id,
+      metadata: JSON.parse(row.metadata || '{}'),
+      audit_result: row.audit_result ? JSON.parse(row.audit_result) : null
+    });
+    
   } catch (error) {
-    console.error('[Evidence] Failed to get evidence:', error);
-    res.status(500).json({ error: 'Failed to retrieve evidence' });
+    console.error('[Evidence] Error fetching evidence:', error);
+    res.status(500).json({ error: 'Failed to fetch evidence' });
   }
 });
 
@@ -104,98 +139,67 @@ router.get('/:id', (req: Request, res: Response) => {
 // ============================================================================
 router.get('/:id/stream', (req: Request, res: Response) => {
   try {
-    const item = evidenceStore.find(e => e.id === req.params.id);
-    if (!item) {
+    const stmt = db.prepare('SELECT mimetype, size, data FROM evidence WHERE id = ?');
+    const row = stmt.get(req.params.id) as any;
+    
+    if (!row) {
       return res.status(404).json({ error: 'Evidence not found' });
     }
-
-    const filePath = path.join(EVIDENCE_DIR, item.filename);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'File not found' });
-    }
-
-    // Set appropriate content type
-    const ext = path.extname(item.filename).toLowerCase();
-    const mimeTypes: Record<string, string> = {
-      '.mp4': 'video/mp4',
-      '.webm': 'video/webm',
-      '.mov': 'video/quicktime',
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.webp': 'image/webp',
-      '.wav': 'audio/wav',
-      '.mp3': 'audio/mpeg',
-      '.ogg': 'audio/ogg',
-      '.webm': 'audio/webm'
-    };
-
-    const contentType = mimeTypes[ext] || 'application/octet-stream';
-    res.setHeader('Content-Type', contentType);
     
-    // Stream the file
-    const stream = fs.createReadStream(filePath);
-    stream.pipe(res);
+    res.setHeader('Content-Type', row.mimetype);
+    res.setHeader('Content-Length', row.size);
+    res.send(row.data);
     
-    stream.on('error', (err) => {
-      console.error('[Evidence] Stream error:', err);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Failed to stream file' });
-      }
-    });
   } catch (error) {
-    console.error('[Evidence] Failed to stream evidence:', error);
+    console.error('[Evidence] Error streaming evidence:', error);
     res.status(500).json({ error: 'Failed to stream evidence' });
   }
 });
 
 // ============================================================================
-// GET /api/v1/evidence/:id/download - Download evidence file
+// GET /api/v1/evidence/:id/download - Download evidence
 // ============================================================================
 router.get('/:id/download', (req: Request, res: Response) => {
   try {
-    const item = evidenceStore.find(e => e.id === req.params.id);
-    if (!item) {
+    const stmt = db.prepare('SELECT filename, mimetype, size, data FROM evidence WHERE id = ?');
+    const row = stmt.get(req.params.id) as any;
+    
+    if (!row) {
       return res.status(404).json({ error: 'Evidence not found' });
     }
-
-    const filePath = path.join(EVIDENCE_DIR, item.filename);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'File not found' });
-    }
-
-    res.download(filePath, item.filename);
+    
+    res.setHeader('Content-Type', row.mimetype);
+    res.setHeader('Content-Disposition', `attachment; filename="${row.filename}"`);
+    res.setHeader('Content-Length', row.size);
+    res.send(row.data);
+    
   } catch (error) {
-    console.error('[Evidence] Failed to download evidence:', error);
+    console.error('[Evidence] Error downloading evidence:', error);
     res.status(500).json({ error: 'Failed to download evidence' });
   }
 });
 
 // ============================================================================
-// DELETE /api/v1/evidence/:id - Delete evidence item
+// DELETE /api/v1/evidence/:id - Delete evidence (admin only)
 // ============================================================================
 router.delete('/:id', (req: Request, res: Response) => {
   try {
-    const index = evidenceStore.findIndex(e => e.id === req.params.id);
-    if (index === -1) {
+    // Check if user is admin
+    if ((req as any).user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    const stmt = db.prepare('DELETE FROM evidence WHERE id = ?');
+    const result = stmt.run(req.params.id);
+    
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Evidence not found' });
     }
-
-    const item = evidenceStore[index];
-    const filePath = path.join(EVIDENCE_DIR, item.filename);
-
-    // Delete file from disk
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-
-    // Remove from store
-    evidenceStore.splice(index, 1);
-    saveMetadata();
-
+    
     res.json({ success: true, message: 'Evidence deleted' });
+    
   } catch (error) {
-    console.error('[Evidence] Failed to delete evidence:', error);
+    console.error('[Evidence] Error deleting evidence:', error);
     res.status(500).json({ error: 'Failed to delete evidence' });
   }
 });
@@ -204,45 +208,48 @@ router.delete('/:id', (req: Request, res: Response) => {
 // Helper functions for adding evidence (called from upload handlers)
 // ============================================================================
 
+import crypto from 'crypto';
+
 /**
- * Add evidence to the store
+ * Add evidence to the database
  */
 export const addEvidence = (
   id: string,
   filename: string,
   mimetype: 'video' | 'audio' | 'image',
-  size: number,
+  data: Buffer,
   metadata: any,
   uploaderId?: string
-): EvidenceItem => {
-  // Generate SHA-256 hash (simplified - in production use crypto)
-  const hash = `sha256-${Buffer.from(id + Date.now().toString()).toString('hex').substring(0, 64)}`;
+): { id: string; hash: string } => {
+  // Generate SHA-256 hash of the data
+  const hash = crypto.createHash('sha256').update(data).digest('hex');
 
-  const item: EvidenceItem = {
+  const stmt = db.prepare(`
+    INSERT INTO evidence (id, hash, filename, mimetype, size, data, metadata, uploader_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  stmt.run(
     id,
     hash,
     filename,
     mimetype,
-    size,
-    uploaded_at: new Date().toISOString(),
-    audited: false,
-    uploader_id: uploaderId,
-    metadata: {
-      lat: metadata.location?.lat || 0,
-      lng: metadata.location?.lng || 0,
-      incident_type: metadata.incident_category || 'unknown',
-      severity: metadata.severity || 'low'
-    }
-  };
+    data.length,
+    data,
+    JSON.stringify(metadata),
+    uploaderId || null
+  );
 
-  evidenceStore.push(item);
-  saveMetadata();
-  return item;
+  return { id, hash };
 };
 
 /**
- * Get evidence directory path
+ * Get evidence count
  */
-export const getEvidenceDir = () => EVIDENCE_DIR;
+export const getEvidenceCount = (): number => {
+  const stmt = db.prepare('SELECT COUNT(*) as count FROM evidence');
+  const result = stmt.get() as { count: number };
+  return result.count;
+};
 
 export default router;

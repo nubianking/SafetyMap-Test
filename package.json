@@ -13,6 +13,7 @@
   "dependencies": {
     "@google/genai": "^1.41.0",
     "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.0.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "express-rate-limit": "^7.5.0",
