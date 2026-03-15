@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Shield, AlertTriangle, MapPin, Radio, TrendingUp, User, Navigation, LayoutGrid, Github, BookOpen, Search, Plus, Eye, Zap, Flame, Scan, Activity, Fingerprint, Cpu, Lock, ArrowRight, Map, Camera, Video, Mic } from 'lucide-react';
+import { Shield, AlertTriangle, MapPin, Radio, TrendingUp, User, Navigation, LayoutGrid, Github, BookOpen, Search, Plus, Eye, Zap, Flame, Scan, Activity, Fingerprint, Cpu, Lock, ArrowRight, Map, Camera, Video, Mic, X, FileVideo, FileImage, FileAudio, CheckCircle, Clock } from 'lucide-react';
 
 export const HAZARD_TYPES = {
   WEAPON: { label: 'WEAPON DETECTED', color: 'text-red-500', icon: Shield, severityKey: 'Threat Level' },
@@ -76,5 +76,11 @@ export const ICONS = {
   Map,
   Camera,
   Video,
-  Mic
+  Mic,
+  X,
+  FileVideo,
+  FileImage,
+  FileAudio,
+  CheckCircle,
+  Clock
 };
