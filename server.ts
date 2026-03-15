@@ -42,7 +42,7 @@ interface AnalysisMetadata {
 // CONSTANTS
 // ============================================================================
 
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT || '3000', 10);
 const MAX_ALERTS = 50;
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const UPLOAD_CONFIDENCE_THRESHOLD = 0.5;
@@ -772,7 +772,7 @@ async function startServer() {
         
         for (const f of filesToSave) {
           const evidenceId = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-          const ext = path.extname(f.originalname) || `.${mediaType === 'video' ? 'mp4' : mediaType === 'audio' ? 'wav' : 'jpg'}`;
+          const ext = path.extname(f.originalname || '') || `.${mediaType === 'video' ? 'mp4' : mediaType === 'audio' ? 'wav' : 'jpg'}`;
           const filename = `${evidenceId}${ext}`;
           
           // Store in SQLite database
