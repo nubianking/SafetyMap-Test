@@ -748,7 +748,7 @@ async function startServer() {
         }
 
         // Server-side file validation
-        const filesToValidate = mediaType === 'image' ? files! : [file!];
+        const filesToValidate: Express.Multer.File[] = mediaType === 'image' ? files! : [file!];
         for (const f of filesToValidate) {
           // Check file size
           if (f.size > FILE_SIZE_LIMITS[mediaType]) {
