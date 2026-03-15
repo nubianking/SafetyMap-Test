@@ -700,6 +700,7 @@ async function startServer() {
       },
       audio: {
         incident_detected: true,
+        type: category || "unknown",
         sound_type: category || "unknown",
         confidence: 0.92,
         estimated_distance: "120m",
