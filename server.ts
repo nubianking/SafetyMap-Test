@@ -967,13 +967,15 @@ async function startServer() {
     // SPA fallback for non-API routes (production only)
     if (process.env.NODE_ENV === "production") {
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
-      app.get('/:path(.*)', (req: Request, res: Response) => {
+      app.get('/*', (req: Request, res: Response) => {
         // Don't serve index.html for API routes
         if (req.path.startsWith('/api')) {
           return res.status(404).json(
             createApiResponse(false, undefined, `API route not found: ${req.method} ${req.path}`)
           );
         }
+        
+        // If you need the path, use req.params[0] instead of req.params.path
         res.sendFile(path.resolve(__dirname, "dist/index.html"));
       });
     }

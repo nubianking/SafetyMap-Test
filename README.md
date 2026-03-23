@@ -1,235 +1,324 @@
-# Safety Map Africa - Grid Node v2.5
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vite-5.0-646CFF?logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/Tailwind-3.4-38B2AC?logo=tailwind-css&logoColor=white" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Gemini%203.1-Flash%20Lite-4285F4?logo=google&logoColor=white" alt="Gemini AI" />
+  <img src="https://img.shields.io/badge/Status-Beta-orange" alt="Status" />
+</p>
 
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
-[![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-5.0-yellow)](https://vitejs.dev/)
+<h1 align="center">🛡️ Safety Map Africa</h1>
+<p align="center">
+  <strong>Decentralized Situational Awareness Network for Urban Safety</strong><br/>
+  <em>Transforming Citizens into Sentry Nodes through AI-Powered Collective Intelligence</em>
+</p>
 
-A decentralized situational awareness network that transforms citizens and drivers into "Sentry Nodes" for urban safety monitoring, powered by AI-driven predictive analytics and community verification.
+<p align="center">
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-features">Features</a> •
+  <a href="#-architecture">Architecture</a> •
+  <a href="#-ai-integration">AI Integration</a> •
+  <a href="#-api-reference">API</a>
+</p>
 
-## 📋 Table of Contents
-
-- [🌟 Overview](#-overview)
-- [🎯 Mission](#-mission)
-- [🚀 Key Features](#-key-features)
-- [🔄 How It Works](#-how-it-works)
-- [🏗️ Architecture](#️-architecture)
-- [🛠️ Tech Stack](#️-tech-stack)
-- [🧠 AI Integration](#-ai-integration)
-- [📦 Getting Started](#-getting-started)
-- [📡 Incident Upload Configuration](#-incident-upload-configuration)
-- [🔗 API Endpoints](#-api-endpoints)
-- [🔒 Environment Variables](#-environment-variables)
-- [📜 License](#-license)
-
-## 🌟 Overview
-
-**Safety Map Africa** is a high-fidelity, decentralized situational awareness network designed to enhance urban security and mobility through collective intelligence. It transforms ordinary citizens and drivers into "Sentry Nodes" that contribute real-time visual and acoustic data to a unified safety grid. By leveraging state-of-the-art multi-modal AI (Gemini 3.1 Flash Lite Preview), the platform identifies hazards, predicts risk escalations, and verifies the authenticity of incident reports, creating a transparent and incentivized safety ecosystem.
+---
 
 ## 🎯 Mission
 
-Our mission is to democratize urban safety data. In many rapidly growing urban environments, traditional security infrastructure is sparse or reactive. Safety Map Africa provides a proactive, community-driven alternative that:
+In rapidly growing urban environments across Africa, traditional security infrastructure is often sparse or reactive. **Safety Map Africa** provides a **proactive, community-driven alternative** that democratizes urban safety data through:
 
-- **Empowers Communities:** Allows residents to actively participate in their own security
-- **Predicts Volatility:** Uses AI to identify behavioral precursors to incidents before they escalate
-- **Incentivizes Truth:** Rewards high-fidelity, verified data with a native tokenized yield (RGT)
-- **Ensures Integrity:** Combats misinformation and deepfakes through rigorous forensic auditing
+- 🔮 **Predictive Intelligence** — AI identifies behavioral precursors to incidents before they escalate
+- 👥 **Community Empowerment** — Residents actively participate in their own security
+- 🎖️ **Verified Truth** — Forensic auditing combats misinformation and deepfakes
+- 💎 **Tokenized Incentives** — Rewards for high-fidelity, verified data contributions (RGT)
 
-## 🚀 Key Features
+> *"Every citizen with a smartphone becomes a sentinel in the safety grid."*
 
-### Predictive Grid Intelligence (Driver Portal)
-- **Oracle Mode:** Transforms mobile devices into tactical sensors
-- **Multi-Modal Analysis:** Continuously audits 3-second video/audio buffers for weapons, erratic driving, and crowd anomalies
-- **Predictive Risk Vectors:** Calculates the probability of escalation and projects likely outcomes in 15-30 second windows
+---
 
-### Forensic Incident Audit (Upload Portal)
-- **6-Point Verification:** A secure gateway for evidence submission that audits pixel integrity, metadata consistency, and contextual landmarks
-- **Deepfake Detection:** Identifies synthetic or manipulated content to prevent the spread of misinformation
-- **Intelligence Summaries:** Generates tactical summaries of events for rapid situational assessment
+## ✨ Core Features
 
-### Live Command Map (MapView)
-- **Real-Time Tracking:** Monitors the live positions of "Mapper Nodes" (drivers) with 15-second update cycles
-- **ETA & Routing:** Displays estimated arrival times and routing telemetry for active units
-- **Situational HUD:** Provides a comprehensive dashboard for auditing live alerts and forensic reports
+### 🚗 Driver Portal — "Oracle Mode"
+Transforms mobile devices into tactical sensors for real-time threat detection.
 
-### Tokenized Yield (RGT)
-- **Proof of Perspective:** Users earn "RGT" tokens based on the quality, rarity, and verification score of the data they contribute
-- **Multiplier Mechanics:** Higher trust ranks (e.g., "Oracle" or "Elite") unlock yield multipliers for consistent, high-fidelity reporting
+| Capability | Description |
+|------------|-------------|
+| **Multi-Modal Analysis** | Continuous 3-second video/audio buffer auditing |
+| **Weapon Detection** | Identifies firearms, knives, and other threats |
+| **Behavioral Analysis** | Detects erratic driving and crowd anomalies |
+| **Predictive Vectors** | 15-30 second escalation probability forecasts |
+| **Live Navigation** | Turn-by-turn routing with traffic integration |
 
-## 🔄 How It Works
+### 📤 Forensic Upload Portal
+Secure evidence submission with AI-powered verification.
 
-1. **Deployment:** A driver mounts their phone and activates the "Behavior Sentry" in the Driver Portal
-2. **Sensing:** The device captures ambient visual and acoustic data, processed in small, anonymized segments
-3. **Analysis:** The Gemini AI engine performs a "Pulse Audit," identifying hazards and predicting risk vectors
-4. **Reporting:** High-severity anomalies are broadcast to the Global Command Map
-5. **Verification:** Other nodes or manual uploads provide cross-verification through the Forensic Audit portal
-6. **Incentivization:** Verified contributions earn RGT tokens, improving the grid's predictive accuracy
+- **6-Point Verification:** Pixel integrity, metadata consistency, contextual landmarks
+- **Deepfake Detection:** Synthetic content identification
+- **Intelligence Summaries:** Tactical event reports for rapid assessment
+- **Multi-Format Support:** Video (MP4), Audio (WAV), Images (JPEG/PNG)
 
-## 🏗️ System Architecture
+### 🗺️ Live Command Map (MapView)
+Real-time situational awareness dashboard.
 
-```mermaid
-graph TD
-    subgraph Client Layer
-        MA["Mapper App"]
-        DA["Driver App"]
-    end
+- **15-Second Tracking:** Live Mapper Node positions
+- **ETA & Routing:** Dynamic travel time calculations
+- **Heatmap Visualization:** Risk zone identification
+- **Situational HUD:** Alert auditing and forensic report access
 
-    subgraph Backend
-        BE["Node.js / Express Server"]
-        AI["Gemini AI Engine"]
-    end
+### 💰 RGT Token Yield
+Proof-of-Perspective incentive system.
 
-    subgraph Google Maps Platform
-        GEO["Geocoding API"]
-        DIR["Directions API"]
-        DM["Distance Matrix API"]
-        PL["Places API"]
-        TR["Traffic API"]
-        VIS["Visualization API"]
-    end
+- Earn tokens based on data quality, rarity, and verification score
+- Trust rank multipliers (Oracle → Elite → Sentinel)
+- Consistent, high-fidelity reporting rewards
 
-    MA -- "Live Tracking / ETA / Heatmaps" --> BE
-    DA -- "Navigation / Location Updates" --> BE
-    BE <--> GEO & DIR & DM & PL & TR & VIS
-    BE --> AI
-```
+---
 
-### Google Maps API Integration
-
-| API                     | Purpose                                                                              |
-| ----------------------- | ------------------------------------------------------------------------------------ |
-| **Maps JavaScript API** | Interactive maps with custom styling, markers, and overlays                          |
-| **Geocoding API**       | Converts GPS coordinates to street addresses; determines user location automatically |
-| **Places API**          | Finds nearby points of interest; enables smart location search for destinations      |
-| **Directions API**      | Provides turn-by-turn navigation for drivers; calculates optimal routes              |
-| **Distance Matrix API** | Calculates ETAs and real-time travel distances; powers dynamic fare calculations     |
-| **Traffic API**         | Real-time traffic data overlay for predictive routing                                |
-| **Visualization API**   | Heatmap layers for grid intelligence zones and risk visualization                    |
-
-### Enhanced Grid Intelligence Features
-
-- **Real-Time Traffic Integration:** Live traffic data overlay for accurate route planning
-- **Heatmap Visualization:** Dynamic heatmaps showing high-risk zones and activity patterns
-- **Predictive Analytics:** Real-time updates of predictive accuracy, active vectors, and yield metrics
-- **Custom Map Styling:** Dark theme optimized for tactical operations
-- **Interactive Markers:** Custom SVG markers for data points and driver locations
-- **Route Visualization:** Animated polylines showing active routes and patrol patterns
-
-## 🛠️ Tech Stack
-
-- **Frontend Framework:** React 19, TypeScript, Vite
-- **Styling:** Tailwind CSS (Custom high-tech/tactical UI design)
-- **AI Integration:** `@google/genai` (Gemini 3.1 Flash Lite Preview for multi-modal video/audio analysis)
-- **Mapping:** Google Maps JavaScript API with custom styling, traffic layers, and heatmap visualization
-- **Icons:** Lucide React
-- **Backend:** Node.js, Express, Multer (for file uploads)
-
-## 🧠 AI Integration
-
-This project heavily utilizes the **Gemini API** for complex, multi-modal reasoning:
-
-1. **Real-time Sentry Audits:** Captures 3-second video/audio buffers and prompts Gemini to act as a "Predictive Tactical Forensic AI", returning structured JSON containing detected hazards, anomalies, acoustic events, and predictive risk probabilities
-2. **Evidence Verification:** Analyzes uploaded MP4/MOV files to perform deepfake probability checks, pixel integrity audits, and severity classifications
-
-## 📦 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
-
-- Node.js (v18+ recommended)
-- npm or yarn package manager
-- Google Gemini API Key
-- Google Maps API Key
+- Node.js 18+
+- Google Gemini API Key ([Get one free](https://ai.google.dev/))
+- Google Maps Platform API Key ([Get one here](https://developers.google.com/maps/documentation/javascript/get-api-key))
 
 ### Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/nubianking/SafetyMap-Test.git
-   cd SafetyMap-Test
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/nubianking/SafetyMap-Test.git
+cd SafetyMap-Test
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+# Install dependencies
+npm install
 
-3. **Set up environment variables:**
-   Copy the `.env.example` file to `.env` and add your API keys:
-   ```bash
-   cp .env.example .env
-   ```
-   Then edit `.env` with your actual keys.
+# Configure environment
+cp .env.example .env
 
-4. **Start the development server:**
-   ```bash
-   npm run dev
-   ```
+# Edit .env and add your API keys:
+# VITE_GEMINI_API_KEY=your_gemini_api_key
+# VITE_GOOGLE_MAPS_API_KEY=your_maps_api_key
 
-5. **Build for production:**
-   ```bash
-   npm run build
-   npm run preview
-   ```
+# Start development server
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) to access the application.
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+graph TD
+    subgraph "Client Layer"
+        DA["🚗 Driver App<br/>Oracle Mode"]
+        MA["📍 Mapper App<br/>Upload Portal"]
+    end
+
+    subgraph "Backend Services"
+        BE["🖥️ Node.js / Express"]
+        AI["🧠 Gemini AI Engine<br/>3.1 Flash Lite"]
+        FS["📁 File Storage<br/>Multer"]
+    end
+
+    subgraph "Google Maps Platform"
+        GEO["📍 Geocoding API"]
+        DIR["🛣️ Directions API"]
+        DM["📏 Distance Matrix API"]
+        PL["🏢 Places API"]
+        TR["🚦 Traffic API"]
+        VIS["🔥 Visualization API"]
+    end
+
+    DA -->|"Location Updates /<br/>Sentry Audits"| BE
+    MA -->|"Incident Uploads /<br/>Evidence"| BE
+    BE <-->|"Geocoding /<br/>Routing /<br/>ETA Calc"| GEO & DIR & DM & PL & TR & VIS
+    BE <-->|"Multi-modal Analysis"| AI
+    BE -->|"File Handling"| FS
+
+    style AI fill:#4285F4,stroke:#fff,stroke-width:2px,color:#fff
+    style BE fill:#61DAFB,stroke:#fff,stroke-width:2px,color:#000
+```
+
+### Tech Stack
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Frontend** | React 19 + TypeScript + Vite | Modern, type-safe UI framework |
+| **Styling** | Tailwind CSS | Custom tactical/dark-themed design |
+| **AI Engine** | Google Gemini 3.1 Flash Lite | Multi-modal video/audio analysis |
+| **Mapping** | Google Maps JavaScript API | Interactive maps with traffic & heatmaps |
+| **Backend** | Node.js + Express | REST API & file handling |
+| **Icons** | Lucide React | Consistent iconography |
+
+---
+
+## 🧠 AI Integration
+
+Safety Map Africa leverages **Gemini 3.1 Flash Lite Preview** for sophisticated multi-modal reasoning:
+
+### 1. Real-Time Sentry Audits
+Captures 3-second video/audio buffers and prompts Gemini to act as a **"Predictive Tactical Forensic AI"**.
+
+**Returns structured JSON with:**
+- Detected hazards (weapons, fire, collisions)
+- Acoustic events (gunshots, screams, explosions)
+- Behavioral anomalies (crowd aggression, erratic movement)
+- Predictive risk probabilities (0-100%)
+
+### 2. Forensic Evidence Verification
+Analyzes uploaded media for authenticity and severity classification.
+
+**6-Point Verification Pipeline:**
+1. ✅ Pixel integrity analysis
+2. ✅ Metadata consistency check
+3. ✅ Deepfake probability score
+4. ✅ Contextual landmark validation
+5. ✅ Temporal sequence verification
+6. ✅ Severity classification (Low/Medium/High/Critical)
+
+---
 
 ## 📡 Incident Upload Configuration
 
-The Mapper App supports three primary upload modes for incident reporting: **Video**, **Audio**, and **Image**. All modes share a core metadata layer but have specific constraints and AI pipelines.
+### Video Reporting
+| Spec | Value |
+|------|-------|
+| Format | MP4 (H.264) |
+| Duration | 3s min — 20s max |
+| Resolution | 720p preferred / 1080p max |
+| Max Size | 50 MB |
+| Endpoint | `POST /api/incidents/upload` |
 
-### Video Incident Reporting
-- **Format:** MP4 (H264 codec)
-- **Duration:** 3s (min) to 20s (max)
-- **Resolution:** 720p (preferred) / 1080p (max)
-- **Max Size:** 50 MB
-- **Endpoint:** `POST /api/v1/incidents/upload/video`
-- **AI Pipeline:** Vision AI (Weapon detection, fire detection, crowd aggression, etc.)
+### Audio Reporting
+| Spec | Value |
+|------|-------|
+| Format | WAV (PCM) |
+| Duration | 2s min — 15s max |
+| Sample Rate | 16,000 Hz (Mono) |
+| Max Size | 10 MB |
 
-### Audio Incident Reporting
-- **Format:** WAV (PCM codec)
-- **Duration:** 2s (min) to 15s (max)
-- **Sample Rate:** 16000 Hz (Mono)
-- **Max Size:** 10 MB
-- **Endpoint:** `POST /api/v1/incidents/upload/audio`
-- **AI Pipeline:** Audio AI (Gunshots, screams, explosions, etc.)
+### Image Reporting
+| Spec | Value |
+|------|-------|
+| Format | JPEG / PNG |
+| Max Images | 3 per report |
+| Max Size | 10 MB per image |
+| Resolution | 1280×720 recommended |
 
-### Image Incident Reporting
-- **Format:** JPEG / PNG
-- **Max Images:** 3 per report
-- **Max Size:** 10 MB per image
-- **Resolution:** 1280x720 (recommended) / 1920x1080 (max)
-- **Endpoint:** `POST /api/v1/incidents/upload/image`
-- **AI Pipeline:** Vision Detection (Weapons, fire, vehicle collisions, damaged infrastructure, etc.)
+### Core Metadata Schema
+```json
+{
+  "report_type": "video|audio|image",
+  "incident_category": "string",
+  "node_id": "string",
+  "device_id": "string",
+  "timestamp": "ISO8601",
+  "location": { "lat": number, "lng": number },
+  "heading": number,
+  "speed": number
+}
+```
 
-### Core Metadata
+---
 
-Every upload attaches forensic metadata, including:
-- `report_type` (video/audio/image)
-- `incident_category`
-- `node_id` & `device_id`
-- `timestamp`
-- `location` (lat/lng)
-- Device signals (heading, speed, etc.)
+## 🔌 API Reference
 
-## 🔌 Backend Mapper API
+### Mapper Profile Endpoints
 
-To support multiple mapper profiles and onboarding, the server exposes the following endpoints:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/mappers` | List all registered mappers (no passkeys) |
+| `POST` | `/api/mappers` | Create new mapper profile & generate passkey |
+| `POST` | `/api/mappers/login` | Authenticate with `alias` + `passkey` |
 
-- `GET /api/mappers` – List all registered mappers (returns profiles without passkeys)
-- `POST /api/mappers` – Create a new mapper profile during onboarding. Payload must include `alias`, `fullName`, `dob`, `phone`, `email`, `nationality`, `mobility`, `zone`, `bankName`, and `accountNumber`. Returns the new profile and the generated passkey
-- `POST /api/mappers/login` – Authenticate using `{ alias, passkey }` (alias may be email). Returns the full profile on success
+### Incident Endpoints
 
-> **Note:** These endpoints currently store data in memory; replace with a persistent database in production.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/incidents/upload` | Upload video/audio/image evidence |
+| `GET` | `/api/incidents` | List all reported incidents |
+| `GET` | `/api/incidents/:id` | Get specific incident details |
+
+### AI Analysis Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/ai/sentry-audit` | Real-time video/audio buffer analysis |
+| `POST` | `/api/ai/verify-evidence` | Forensic verification of uploaded media |
+
+> **Note:** Mapper data is currently stored in memory. Replace with persistent database (PostgreSQL/MongoDB) for production deployment.
+
+---
 
 ## 🔒 Environment Variables
 
-The application requires the following environment variables:
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `VITE_GEMINI_API_KEY` | Google Gemini API for AI analysis | ✅ Yes |
+| `VITE_GOOGLE_MAPS_API_KEY` | Google Maps Platform access | ✅ Yes |
+| `PORT` | Server port (default: 3000) | ❌ Optional |
 
-- `VITE_GEMINI_API_KEY`: Your Google Gemini API key for running the forensic and predictive AI models
-- `VITE_GOOGLE_MAPS_API_KEY`: Your Google Maps Platform API key for geocoding, places, directions, and distance matrix
+---
 
-## 👥 Contributors
+## 🗺️ Roadmap
 
-* **Otemade Balogun** – balogun.otemade@gmail.com
+- [x] **v1.0** Core Driver Portal with Oracle Mode
+- [x] **v1.1** Forensic Upload Portal
+- [x] **v1.2** Live Command Map with heatmaps
+- [x] **v1.3** Google Maps integration (Traffic, Routing)
+- [ ] **v2.0** RGT Token Smart Contract Integration
+- [ ] **v2.1** Offline-First PWA Support
+- [ ] **v2.2** Community Verification (crowd-sourced fact-checking)
+- [ ] **v3.0** Multi-City Grid Deployment
+- [ ] **v3.1** Integration with Emergency Services APIs
 
-## 📜 License
+---
 
-Proprietary / Confidential.
+## 🤝 Contributing
+
+We welcome contributions from developers, security professionals, and urban planners!
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
+
+**Priority Areas:**
+- Additional AI detection models (vehicle accidents, infrastructure damage)
+- Enhanced deepfake detection algorithms
+- Mobile app optimization (React Native/Flutter)
+- Blockchain integration for RGT tokenization
+
+---
+
+## ⚠️ Important Notes
+
+**API Key Security:** Never commit your `.env` file. Restrict your Google Maps API key to your domain in the Google Cloud Console.
+
+**Data Privacy:** Location and media data is processed for safety analysis. Implement GDPR-compliant data handling for production deployments.
+
+**Performance:** Large video files (>50MB) may cause upload delays. Consider implementing chunked uploads for production.
+
+---
+
+## 👥 Team
+
+| Name | Role | Contact |
+|------|------|---------|
+| **Otemade Balogun** | Founder & Lead Developer | balogun.otemade@gmail.com |
+
+---
+
+## 📄 License
+
+Proprietary / Confidential — All rights reserved.
+
+---
+
+<p align="center">
+  Built with 💙 by <strong>OBA Inc</strong> for safer African cities.
+  <br/>
+  <sub>Powered by Google Gemini & Google Maps Platform</sub>
+</p>
